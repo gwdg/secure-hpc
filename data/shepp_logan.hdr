@@ -1,0 +1,8 @@
+# Dimensions
+256 256 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
+# Command
+phantom -x 256 -k shepp_logan 
+# Files
+ >shepp_logan
+# Creator
+BART v0.6.00
