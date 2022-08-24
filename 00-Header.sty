@@ -1,0 +1,226 @@
+% This file provides the generic header that sets up the page formatting and
+% common custom macro and environment definitions that will be used for the
+% C and C++ programming course.
+%
+% You can consult the `00-Example_Usage.tex` file for a full example of how to
+% use this header file.
+%
+% --------------------80-CHARACTER-SOURCE-LINE-WIDTH-GUIDE----------------------
+
+% The documentclass is set to an a4 paper article using KOMA-script
+
+% Hyperref is used, allowing for linking between different parts of the pdf.
+\usepackage[pdfborder={0 0 0}]{hyperref}
+
+% Geometry sets the exact dimensions of the page, overriding KOMA-scripts DIM.
+\usepackage[top=0.5in,bottom=1in,left=0.5in,right=0.5in]{geometry}
+
+% Tabu provides better tables than the built in tabular environment.
+\usepackage{tabu}
+
+\usepackage{float} % for figures
+\usepackage{attachfile} % for attaching files
+\usepackage{textcomp} % for upquote in the listing package
+\usepackage{amsmath,tikz}
+\usepackage{todonotes}
+\newcommand{\jk}[1]{\todo[inline,color=green]{JK: #1}}
+\setlength\parindent{0pt}
+
+% Adds additional section configuration options, these mirror `\date` and
+% `\author` in behaviour.
+\usepackage{totcount}
+\makeatletter
+\newcounter{cs@exercise}
+\newcommand{\exercise}[1]{\setcounter{cs@exercise}{#1}}
+\newcommand{\theexercise}{\arabic{cs@exercise}}
+\newcounter{cs@xmarks}
+\regtotcounter{cs@xmarks}
+\newcommand{\totalxmarks}{\total{cs@xmarks}}
+\newcommand{\addxmark}[1]{\addtocounter{cs@xmarks}{#1}}
+%\newtoks{\internal@term}
+%\newcommand{\term}[1]{\internal@term={#1}}
+%\newcommand{\theterm}{\the\internal@term}
+\makeatother
+
+% The following are used to configure the footer of the document.
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+\usepackage{titling}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{}
+\lhead{}
+\lfoot{\thecourseabbr \space -- \thetype \space \theexercise{}}
+\rfoot{\thepage/\pageref{LastPage}}
+
+% Listings is used for the inclusion of source code.
+\usepackage{xcolor}
+\usepackage{listings}
+\definecolor{pblue}{rgb}{0.13,0.13,1}
+\definecolor{pgreen}{rgb}{0,0.5,0}
+\definecolor{pred}{rgb}{0.9,0,0}
+\definecolor{pgrey}{rgb}{0.46,0.45,0.48}
+\lstset{
+	basicstyle=\ttfamily\footnotesize,
+	numberstyle=\ttfamily\tiny,
+	frame=single,
+	numbers=left,
+	numbersep=1em,
+	xleftmargin=2em,
+	language=C,
+	breaklines=true,
+	breakatwhitespace=true,
+	postbreak=\hbox{$\hookrightarrow$ },
+	showstringspaces=false,
+	tabsize=2,
+	commentstyle=\color{pgreen},
+	keywordstyle=\color{pblue},
+	stringstyle=\color{pred},
+	moredelim=[il][\textcolor{pgrey}]{\[\]},
+	moredelim=[is][\textcolor{pgrey}]{\%\%}{\%\%},
+    columns=fullflexible,
+	upquote=true,
+}
+\usepackage{cleveref}
+%\crefname{listing}{Listing}{Listing}
+%\Crefname{listing}{Listing}{Listing}
+
+\parskip 8pt
+
+% The following defines the command \makesheetheader which is used to create
+% the header shown at the top of every exercise sheet.
+\definecolor{infobox}{HTML}{e0f7fa}
+\newcommand{\makesheetheader}{%
+    \thispagestyle{empty}
+    \begin{center}
+    	\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}r@{}}
+    	    \theorganization & \thetype \space \theexercise \space / \thedate \\
+    		\theinstitution	& \thecourse \space / \theterm \space \theyear \\
+    		\theauthor & \totalxmarks \space Minutes Total \\
+    		& \\
+    		\hline
+    	\end{tabular*}
+    \end{center}%
+}
+
+%\newlinechar=`\^^J
+
+% The `submissions` Environment is used for listing the work outputs expected to
+% be produced for any given exercise.
+\newenvironment{submissions}[1]{%
+    % The `\submission` command establishes an expected file, and then a
+    % description of what the content of the file ought to be.
+		\newcommand{\submission}[2]{\texttt{\scriptsize \theexercise/#1/##1} & ##2 \message{^^JSubmission: touch \theexercise/#1/##1^^J} \\
+    }
+    \newcommand{\submissionm}[3]{\texttt{\scriptsize \theexercise/#1/##1} & ##2 (##3 min) \message{^^JSubmission: touch \theexercise/#1/##1^^J} \\
+    }
+    \message{^^JSubmission: mkdir -p \theexercise/#1^^J}
+    \subsection*{Portfolio (directory: \texttt{\theexercise/#1})}
+    \begin{tabu}{lX}
+    %\submission{fb.txt}{The feedback file for this exercise}
+}{%
+    \end{tabu}
+}
+
+\newcommand{\generaltoc}[2]{%
+	\addtocounter{section}{1}%
+	\section*{#1 \arabic{section}: #2}%
+	\addcontentsline{toc}{section}{#1 \arabic{section}: #2}%
+	\setcounter{subsection}{0}
+}
+
+% The `\task` command is used to declare the start of a new task which should be
+% attempted.
+\makeatletter
+\newcounter{cs@lastxmark}
+\newcommand{\lastxmark}[1]{\setcounter{cs@lastxmark}{#1}}
+\newcommand{\thelastxmark}{\arabic{cs@lastxmark}}
+\makeatother
+\newcommand{\task}[2]{%
+		\generaltoc{Task}{#1 (#2 min)}%
+    \addxmark{#2}%
+    \lastxmark{#2}%
+}
+
+% Following defines the \expectedoutput command which is used to describe the output expected from a demonstration script
+\definecolor{outputbox}{HTML}{90EE90}
+\newcommand{\expectedoutput}[1]{%
+    {
+        \colorbox{outputbox}{\texttt{#1}}
+    }%
+}
+
+% The `\hardtask` command is used to declare an alternative harder version of a
+% task which might be attempted by a student.
+\definecolor{hardbox}{HTML}{FFCDD2}
+\makeatletter
+\newcommand{\hardtask}[1]{%
+		\addtocounter{section}{-1}
+		\generaltoc{Task}{\color{red}{#1 (\thelastxmark{} min)}}%
+    \vspace{-1em}%
+    {\colorbox{hardbox}{This is a more difficult \textbf{optional} task which %
+    can be done instead of Task \thesection}}%
+    \vspace{1em}%
+    \par\@afterindentfalse\@afterheading
+}
+
+\newcommand{\extraTask}[2]{%
+		\generaltoc{Optional Task}{\color{red}{#1 (#2 min)}}%
+    \vspace{-1em}%
+    {\colorbox{hardbox}{This is a difficult \textbf{additional} task which will support your understanding in the topic.}}%
+    \vspace{1em}%
+    \par\@afterindentfalse\@afterheading
+}
+\makeatother
+
+% The following define reusable subsections.
+% The following define reusable subsections.
+\newenvironment{critera}{%
+    \subsection*{Marking Criteria}
+    \begin{itemize}
+}{%
+    \end{itemize}
+}
+\newenvironment{criteria*}{
+    \subsection*{Marking Criteria}
+}{}
+\newenvironment{steps}{%
+    \subsection*{Steps}
+    \begin{enumerate}
+}{%
+    \end{enumerate}
+}
+\newenvironment{steps*}{
+    \subsection*{Steps}
+}{}
+\newenvironment{literature}{%
+    \subsection*{Further Reading}
+    \begin{itemize}
+}{
+    \end{itemize}
+}
+\newenvironment{literature*}{
+    \subsection*{Further Reading}
+}{}
+\newenvironment{hints}{%
+    \subsection*{Hints}
+    \begin{itemize}
+}{
+    \end{itemize}
+}
+\newenvironment{hints*}{
+    \subsection*{Hints}
+}{}
+
+% \newcommand{\Input}{\subsection*{Input}}
+% \newcommand{\Output}{\subsection*{Output}}
+% \newcommand{\example}{\subsection*{Example}}
+
+\newcommand{\cmd}[1]{\texttt{\$~#1}}
+\newcommand{\func}[1]{\texttt{#1()}}
+\newcommand{\cd}[1]{\texttt{#1}}
+
+\newcommand{\tutorial}[2]{%
+\generaltoc{#1}{Tutorial (#2 min)}%
+\addxmark{#2}%
+}
