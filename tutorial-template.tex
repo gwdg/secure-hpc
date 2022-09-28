@@ -67,31 +67,32 @@ These compute nodes are part of a dedicated, hidden partition \texttt{secure}.
 
 \tutorial{The Secure Client}{10} % {name}{time in min}
 As described in the synopsis, the secure client is always the beginning of a secure workflow. 
-You should have gotten a uid. 
-Since we will need to connect from the secure client machine to the HPC system, we need to activate \texttt{AgentForwarding}. This can be done with the \texttt{-A} option, or using a local config file in \texttt{~/.ssh/config}. \\
+You should have gotten a uid and password. 
+When you connect via \texttt{ssh}, you should be prompted for a password.
 
 Please connect now to the secure client with:\\
-\cmd{ssh -A <uid>@141.5.99.62}
+\cmd{ssh <uid>@141.5.99.62}
 \\
-Or prepare your \texttt{~/.ssh/config} file like this: \\
-\begin{lstlisting}[language=bash, caption=~/.ssh/config] 
-Host secure_tutorial
-	User <uid>
-	Hostname 141.5.99.62
-	IdentityFile ~/.ssh/<your_priv_key>
-	ForwardAgent yes
-\end{lstlisting}
+% Or prepare your \texttt{~/.ssh/config} file like this: \\
+% \begin{lstlisting}[language=bash, caption=~/.ssh/config] 
+% Host secure_tutorial
+% 	User <uid>
+% 	Hostname 141.5.99.62
+% 	IdentityFile ~/.ssh/<your_priv_key>
+% 	ForwardAgent yes
+% \end{lstlisting}
 And then do a\\
 \cmd{ssh secure\_tutorial} \\
-You probably need to choose your favorite shell, e.g. type: \\
+You may probably need to choose your favorite shell, e.g. type: \\
 \cmd{bash} \\
 and you will be in a Bash-Shell. \\
-You should now be in your \cmd{\$HOME} and you can enter our \texttt{job\_template} directory. 
+You should now be in your \texttt{\$HOME} and you can enter our \texttt{job\_template} directory. 
 Here you will find \texttt{src} directory containing a Singularity/Apptainer recipe. 
 This can be used to built your on container image to run \textit{BART}. 
 The \texttt{data} directory contains your sample input data. 
 In a real use case, this would be your medical data from a patient, which requires the highest protection. 
 
+\textbf{Insert ssh public key uploading in LDAP here?}
 \tutorial{Encrypting the Data}{10}
 The first step in the secure workflow is to encrypt your data. 
 In this example, we will be using LUKS. 
