@@ -54,8 +54,8 @@ The secure workflow is sketched in \cref{fig:secure_sbatch}.
 
 The fundamental idea is that from a secure client system, which could be a system located in a secured hospital infrastructure, all data is encrypted and uploaded to the (potentially unsecure) shared HPC system.
 The keys \textbf{must not} be uploaded to the HPC system, since this would render the encryption useless, because an attacker would then get access to both, your data and your encryption key. 
-Instead we are using a separate key management system, which is outside of the HPC system, and therefor shielded from an attacker on the HPC system.
-Since the data need to be decrypted during computations, dedicated and isolated compute nodes are required. 
+Instead we are using a separate key management system, which is outside of the HPC system, and therefore shielded from an attacker on the HPC system.
+Since the data needs to be decrypted during computations, dedicated and isolated compute nodes are required. 
 These compute nodes are part of a dedicated, hidden partition \texttt{secure}. 
 
 
@@ -172,7 +172,7 @@ If you have a look at it, e.g. with \texttt{cat}, you will see that this is no b
 Since a valid bash script is required by Slurm, we need to provide one. 
 For this passing in the encrypted gpg message to a \texttt{decrypt\_and\_execute} function, which we provide you on a secure node. 
 The script that we want to submit to Slurm is called \texttt{run.sh}. 
-Therefor, an encrypted script has to look exactly like this(of course, the actual message will be different): \\
+Therefore, an encrypted script has to look exactly like this(of course, the actual message will be different): \\
 \begin{lstlisting}[language=bash, caption=run.sh] 
 #!/bin/bash
 
