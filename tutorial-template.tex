@@ -67,32 +67,45 @@ These compute nodes are part of a dedicated, hidden partition \texttt{secure}.
 
 \tutorial{The Secure Client}{10} % {name}{time in min}
 As described in the synopsis, the secure client is always the beginning of a secure workflow. 
-You should have gotten a uid and password. 
+You should have gotten a \texttt{uid} and password. 
 When you connect via \texttt{ssh}, you should be prompted for a password.
 
 Please connect now to the secure client with:\\
-\cmd{ssh <uid>@141.5.99.62}
-\\
-% Or prepare your \texttt{~/.ssh/config} file like this: \\
-% \begin{lstlisting}[language=bash, caption=~/.ssh/config] 
-% Host secure_tutorial
-% 	User <uid>
-% 	Hostname 141.5.99.62
-% 	IdentityFile ~/.ssh/<your_priv_key>
-% 	ForwardAgent yes
-% \end{lstlisting}
-And then do a\\
-\cmd{ssh secure\_tutorial} \\
-You may probably need to choose your favorite shell, e.g. type: \\
-\cmd{bash} \\
-and you will be in a Bash-Shell. \\
-You should now be in your \texttt{\$HOME} and you can enter our \texttt{job\_template} directory. 
+\cmd{ssh <uid>@141.5.99.62} 
+\\and enter the password when prompted. 
+
+You should now be in your \texttt{\$HOME} and you can enter our \texttt{job\_template} directory with \cmd{cd job\_template}. 
 Here you will find \texttt{src} directory containing a Singularity/Apptainer recipe. 
 This can be used to built your on container image to run \textit{BART}. 
 The \texttt{data} directory contains your sample input data. 
 In a real use case, this would be your medical data from a patient, which requires the highest protection. 
 
-\textbf{Insert ssh public key uploading in LDAP here?}
+Now that you are on the secure client you will need access to the secure HPC server. 
+You can access this via \texttt{ssh} again, but this time, instead of access via a password, you will be uploading your public ssh key onto LDAP.
+\begin{figure*}[!ht]
+    \centerline{\includegraphics[width=0.65\textwidth]{gwdg1.png}}
+    \caption{}
+    \label{fig:screenshot1}
+\end{figure*}
+You can do that by signing into \href{https://www.gwdg.de} with your credentials. 
+Once you're in, go to "Mein Konto" via the drop-down on the top right. 
+
+Under "Andere", you should see an option "Bearbeiten" for adding/removing SSH public keys. 
+Copy your public key present at \texttt{/home/UID/.ssh/id\_rsa}. 
+
+\begin{figure*}[!ht]
+    \centerline{\includegraphics[width=0.65\textwidth]{gwdg2.png}}
+    \caption{}
+    \label{fig:screenshot2}
+\end{figure*}
+
+\begin{figure*}[!ht]
+    \centerline{\includegraphics[width=0.65\textwidth]{gwdg3.png}}
+    \caption{}
+    \label{fig:screenshot3}
+\end{figure*}
+Once you upload your LDAP, you should be able to access the hpc cluster via ssh. 
+
 \tutorial{Encrypting the Data}{10}
 The first step in the secure workflow is to encrypt your data. 
 In this example, we will be using LUKS. 
@@ -152,7 +165,8 @@ These keys are uploaded into our Key Management System, i.e. Vault.
 In order to retrieve the keys later, we are receiving single-use and short-lived tokens from Vault. 
 These tokens need to be included in the batch script, so that the keys can be retrieved on a secure node. 
 \\
-The general \textit{command}, i.e. the bash-commands, is written in \texttt{command.sh.template}. Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables $<$hpc-uid$>$, $<$uid$>$, $<$LUKScontainername$>$, and $<$containername$>$ in \textbf{both} scripts. (Please Notice that unfortunately $<$LUKScontainername$>$ is the same as$<$containername$>$ )
+The general \textit{command}, i.e. the bash-commands, is written in \texttt{command.sh.template}. Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables $<$LUKScontainername$>$, $<$uid$>$, \\$<$hpc-uid$>$ and $<$containername$>$ in \textbf{both} scripts. 
+(Please Notice that unfortunately $<$LUKScontainername$>$ is the same as$<$containername$>$ )
 Please do the same at the bottom of \texttt{prepare\_scripts.sh}. \\
 Afterwards you can look at \texttt{prepare\_scripts.sh} and substitute the key name for your LUKS container.
 You can then execute it with: \\
@@ -161,7 +175,9 @@ This will upload your keys to Vault, and will insert the received tokens into a 
 \\
 To summarize, your resulted \texttt{command.sh} is the bash-script,  that you want to execute on a secure node. 
 
-\tutorial{Enrypting your Batch Script}{10}
+\tutorial{Encrypting your Batch Script}{10}
+\textbf{Include gpg imports here}
+
 Since it does contain the tokens to retrieve the keys from Vault, we should encrypt it as well. 
 This can be done with \texttt{gpg}, for which a public key is already imported on the secure client. 
 In addition, there is a helper script in \texttt{/opt/secure\_workflow/encrypt\_script.sh} which you can call with: \\
