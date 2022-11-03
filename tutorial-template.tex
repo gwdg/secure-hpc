@@ -148,7 +148,7 @@ Since the container is encrypted you can securely upload it: \\
 
 \tutorial{Uploading Keys and Writing a Batch Script}{10}
 Due to the encryption of our data and the encryption of the Singularity/Apptainer images, we have two keys, which we need to manage. 
-These keys are uplaoded into our Key Management System, i.e. Vault. 
+These keys are uploaded into our Key Management System, i.e. Vault. 
 In order to retrieve the keys later, we are receiving single-use and short-lived tokens from Vault. 
 These tokens need to be included in the batch script, so that the keys can be retrieved on a secure node. 
 \\
@@ -210,10 +210,10 @@ EOF
 \textbf{Of course, you need to insert your own gpg message}
 
 \tutorial{Signing your Batch Script and Securely Submitting Your Job}{10}
-Since the integrity of the secure nodes depends on the restricted access, to prevent an attacker from accessing the node and tampering with it, we need to sign our batch script, to authenticate ourselfs on the secured node. 
+Since the integrity of the secure nodes depends on the restricted access, to prevent an attacker from accessing the node and tampering with it, we need to sign our batch script, to authenticate ourselves on the secured node. 
 For this, a public-private key pair was generated, where the public key is imported on the secure node and the private key is only stored on the secure client. With this private key, we can do a detached signature. 
 \\
-\textbf{Please realize: The integrity of this entire workflow depends on the security of this private key with which we authenticate ourselfs.}
+\textbf{Please realize: The integrity of this entire workflow depends on the security of this private key with which we authenticate ourselves.}
 \\
 You can perform the detached signature with: \\
 \cmd{gpg --detach-sign --local-user user\_key -o run.sh.sig run.sh} \\
