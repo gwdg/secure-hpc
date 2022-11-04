@@ -1,0 +1,33 @@
+#!/bin/bash
+
+token_setup=<DEFAULT_TOKEN>
+token=<WRAPPED_TOKEN>
+
+export VAULT_ADDR='https://141.5.111.67:81'
+VAULT_TOKEN=$token_setup
+
+token=$(vault unwrap -field=token $token)
+
+export VAULT_TOKEN=$token
+
+getkey user_2 inputdata <hpc-uid>
+getkey user_2 rsa_pri <hpc-uid>
+getkey user_2 outdata <hpc-uid>
+
+echo "Mounting data.."
+mount_data inputdata
+mount_data outdata
+
+# Insert Singularity Call
+cd /scratch/users/sachut/home
+/usr/local/bin/singularity exec --nv --pem-path=/keys/rsa_pri.key --bind /data/<hpc-uid>/inputdata/:/data/,/data/<hpc-uid>/outdata/:/output/,/scratch/users/<hpc-uid>/neuro/license:/fs_license \
+	/scratch/users/<hpc-uid>/home/fastsurfer.sif /fastsurfer/run_fastsurfer.sh \
+                      --fs_license /fs_license/license.txt \
+                      --t1 /data/57779789.nii \
+                      --sid 5779789 --sd /output \
+                      --parallel --threads 16 --batch 8 --order 3 --seg_only
+
+echo "UMounting data.."
+umount_data inputdata
+umount_data outdata
+
