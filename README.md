@@ -8,7 +8,7 @@ A secure workflow for the transfer, storing and processing of sensitive data. Th
 ## Overview
 This Secure HPC environment enables the processing of sensitive data such as sensitive medical data on shared HPC Systems. 
     
-In a typical user workflow, the user logs in to the frontend and uploads sensitive data. A batch script for processing the data on the compute nodes is run if the user is authorised with a valid `UID`. The processed data is then to be transferred back. This workflow is problematic since it is vulnerable to attacks at several places (for example, if an attacker gains root privileges at the user-end) . The secure workflow ensures security by encrypting data in a container, encrypting batch script and so on (?). Furthermore, a separate Key Server is used for managing keys for encryption. 
+In a typical user workflow, the user logs in to the frontend and uploads sensitive data. A batch script for processing the data on the compute nodes is run if the user is authorised with a valid `UID`. The processed data is then to be transferred back. This workflow is problematic since it is vulnerable to attacks at several places (for example, if an attacker gains root privileges at the user-end) . The secure workflow ensures security by encrypting data, securing job dependencies in encrypted containers, and using encrypting batch script. Furthermore, a separate Key Server is used for managing keys required for de/encryption. 
 
 ## Folders
 
