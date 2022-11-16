@@ -109,7 +109,7 @@ Once you upload your LDAP, you should be able to access the hpc cluster via ssh.
 \tutorial{Encrypting the Data}{10}
 The first step in the secure workflow is to encrypt your data. 
 In this example, we will be using LUKS. 
-In order to create a LUKS data container you can use a helper script located in \texttt{/opt/secure\_workflow/create\_data\_container.sh}. 
+To create a LUKS data container you can use a helper script located in \texttt{/opt/secure\_workflow/create\_data\_container.sh}. 
 Executing it with the \texttt{-h} option provides you with information on how to execute it. 
 It will show you, that you need to provide 3 parameters: 
 \begin{itemize}
@@ -183,6 +183,8 @@ This can be done with \texttt{gpg}, for which a public key is already imported o
 In addition, there is a helper script in \texttt{/opt/secure\_workflow/encrypt\_script.sh}. Before you call it, you need to import your keys as follows: 
 \cmd{gpg --import /tmp/agqkey}\\
 \cmd{gpg --import /tmp/user\_priv}\\ 
+
+You will be prompted for a password. In this case, it is just \texttt{test}.
 
 You can now call the \texttt{encrypt\_script.sh} as follows: \\ 
 \cmd{/opt/secure\_workflow/encrypt\_script.sh command.sh agq001} \\
@@ -289,13 +291,13 @@ At first, you have an frequency/k-space image:
 \begin{figure*}[!ht]
     \centerline{\includegraphics[width=0.3\textwidth]{kraum.png}}
     \caption{K-Space image of Shepp-Logan}
-    \label{fig:secure_sbatch}
+    \label{fig:kraum}
 \end{figure*}
 
 \begin{figure*}[!ht]
     \centerline{\includegraphics[width=0.3\textwidth]{realspace.png}}
     \caption{K-Space image of Shepp-Logan}
-    \label{fig:secure_sbatch}
+    \label{fig:realspace}
 \end{figure*}
 
 \end{document}
