@@ -169,6 +169,7 @@ The general \textit{command}, i.e. the bash-commands, is written in \texttt{comm
 (Please Notice that unfortunately $<$LUKScontainername$>$ is the same as$<$containername$>$ )
 Please do the same at the bottom of \texttt{prepare\_scripts.sh}. \\
 Afterwards you can look at \texttt{prepare\_scripts.sh} and substitute the key name for your LUKS container.
+
 You can then execute it with: \\
 \cmd{./prepare\_scripts.sh} \\
 This will upload your keys to Vault, and will insert the received tokens into a new file called \texttt{command.sh}. This was automatically derived by \texttt{prepare\_scripts.sh} by your \texttt{command.sh.template}. 
@@ -176,11 +177,14 @@ This will upload your keys to Vault, and will insert the received tokens into a 
 To summarize, your resulted \texttt{command.sh} is the bash-script,  that you want to execute on a secure node. 
 
 \tutorial{Encrypting your Batch Script}{10}
-\textbf{Include gpg imports here}
 
 Since it does contain the tokens to retrieve the keys from Vault, we should encrypt it as well. 
 This can be done with \texttt{gpg}, for which a public key is already imported on the secure client. 
-In addition, there is a helper script in \texttt{/opt/secure\_workflow/encrypt\_script.sh} which you can call with: \\
+In addition, there is a helper script in \texttt{/opt/secure\_workflow/encrypt\_script.sh}. Before you call it, you need to import your keys as follows: 
+\cmd{gpg --import /tmp/agqkey}\\
+\cmd{gpg --import /tmp/user\_priv}\\ 
+
+You can now call the \texttt{encrypt\_script.sh} as follows: \\ 
 \cmd{/opt/secure\_workflow/encrypt\_script.sh command.sh agq001} \\
 \textbf{If you get a warning, no problem, just go ahead and say yes} \\
 This will encrypt your \texttt{command.sh} and will store it in \texttt{command.sh.asc}. 
