@@ -1,13 +1,11 @@
 # run_workflow
 
 ### automatic.sh
-- Driver script
-- Prepares input and output data container, copies onto scratch/secure
-- Also creates corresponding keys (`.key`)
-- Calls prepare_scripts to prepare command.sh
-- Encrypts command.sh and copies into run.sh  
-- Creates detached signature for run.sh, copies both onto scratch/home 
-- Executes run.sh on secure hpc 
+Used variables: `uid`, `hpc-uid`, `pubKeyOfServer`, `LocalUserKey`, `hpc-frontend`
+- End-to-end automation of the secure workflow
+- Prepares input and output data containers, keys
+- Prepare command.sh to be executed on the secure hpc server (as `run.sh`) 
+- Creates detached signature, copies `run.sh` and `run.sh.sig` onto scratch/home and executes `run.sh` 
 - Copies output image file to local and mounts for use
 
 ### prepare_scripts.sh
