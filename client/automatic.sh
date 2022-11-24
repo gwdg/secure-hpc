@@ -9,10 +9,10 @@ ls /mnt/inputdata/
 
 # Verifies data has been copied
 ../utils/umount_data_container.sh inputdata /mnt				
-scp inputdata.img <uid>?@transfer-scc.gwdg.de:/scratch/users/<uid>?/secure
+scp inputdata.img <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure
 
 # Secure-copies inputdata.img onto hpc server
-scp inputdata.img <uid>?@transfer-scc.gwdg.de:/scratch/users/<uid>?/secure	
+scp inputdata.img <<hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure	
 
 # Prepare output container
 echo "YES" | ../utils/create_data_container.sh outdata /mnt 500			
@@ -20,7 +20,7 @@ echo "YES" | ../utils/create_data_container.sh outdata /mnt 500
 ../utils/umount_data_container.sh outdata /mnt					
 
 # Copies outdata.img onto hpc server
-scp outdata.img <uid>?@transfer-scc.gwdg.de:/scratch/users/<hpc-uid>/secure	
+scp outdata.img <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure	
 
 # Prepares command.sh, copies generated default and wrapped tokens into it
 # Sends keys to vaults
@@ -46,7 +46,7 @@ cat run.sh
 gpg --detach-sign --local-user <LocalUserKey> -o run.sh.sig run.sh
 
 # Secure copies run.sh, run.sh.sig onto scratch 
-scp run.sh run.sh.sig <hpc-uid>@<hpc-frontend>:/scratch/users/sachut<>?/home/
+scp run.sh run.sh.sig <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/home/
 
 # Executes run.sh on secure client
 slurmid=$(ssh <hpc-uid>@<hpc-frontend> 'cd /scratch/users/sachut<>?/home/ ; /opt/slurm/bin/sbatch -p secure -G 1 --time=2-00:00:00 -n 16 --mem=40G run.sh' | gawk '{print $4}')
@@ -56,7 +56,7 @@ while [[ $(ssh <hpc-uid>@<hpc-frontend> "/opt/slurm/bin/sacct -b -j $slurmid | g
 echo 'finished'
 
 # Copies image file from server to local 
-scp <hpc-uid>@<hpc-frontend>:/scratch/users/sachut<>?/secure/outdata.img .
+scp <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure/outdata.img .
 
 # Mounts outdata
 ../utils/mount_data.sh outdata
