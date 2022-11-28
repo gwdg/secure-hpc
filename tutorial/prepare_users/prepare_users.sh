@@ -1,7 +1,7 @@
 #!/bin/bash
 
-NUMBER_OF_USERS=$1
-UNAME="user_"
+NUMBER_OF_USERS=$2
+UNAME=$1
 
 for (( i=1; i<=${NUMBER_OF_USERS}; i++ ))
 do
@@ -35,6 +35,7 @@ do
    sudo cp -r ../JobTemplate /home/"$UNAME$i"/JobTemplate
    
    # Distribute tokens from vault 
+   sudo mkdir /home/"$UNAME$i"/JobTemplate/secret
    sudo chmod 777 /home/$UNAME$i/JobTemplate/secret/
    scp cloud@141.5.111.67:/home/cloud/vault/$UNAME$i.token /home/$UNAME$i/JobTemplate/secret 
 
