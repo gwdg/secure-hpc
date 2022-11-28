@@ -2,6 +2,7 @@
 User login set-up on a VM with permissions, and wrapper scripts, data, keys, etc, in ../JobTemplate.
 
 Usage: `./prepare_users.sh <uid_prefix> <number_of_users>`
+
 For example, `./prepare_users.sh user_ 10` creates 10 users, `user_1, ..., user_10`. 
 
 - Outputs `user_logins.txt` with user IDs and passwords of created users. 
