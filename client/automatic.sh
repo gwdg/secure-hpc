@@ -2,23 +2,20 @@
 
 # Prepare input data container
 echo "YES" | utils/create_data_container.sh inputdata /mnt 50
-# Copies all data files into the inputdata folder
 cp <path-to-data-dir>/* /mnt/inputdata/							
 # Verifies data has been copied
 ls /mnt/inputdata/								
-
-# Verifies data has been copied
+# Unmounts input data container
 utils/umount_data_container.sh inputdata /mnt				
-scp inputdata.img <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure
-
-# Secure-copies inputdata.img onto hpc server
+# Copies inputdata.img onto hpc server
 scp inputdata.img <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure	
 
 # Prepare output container
 echo "YES" | utils/create_data_container.sh outdata /mnt 500			
 # Unmounts
 utils/umount_data_container.sh outdata /mnt					
-
+# Create a directory on the server
+ssh <hpc-uid>@<hpc-frontend> 'mkdir /scratch/users/<hpc-uid>/secure'
 # Copies outdata.img onto hpc server
 scp outdata.img <hpc-uid>@<hpc-frontend>:/scratch/users/<hpc-uid>/secure	
 
