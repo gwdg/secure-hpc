@@ -1,7 +1,7 @@
 #!/bin/bash
 
-NUMBER_OF_USERS=$1
-UNAME="user_"
+NUMBER_OF_USERS=$2
+UNAME=$1
 
 for (( i=1; i<=${NUMBER_OF_USERS}; i++ ))
 do
@@ -30,18 +30,14 @@ do
 	   echo "AllowUsers $UNAME$i" | sudo tee -a /etc/ssh/sshd_config
 	   echo "$UNAME$i ALL = (ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
    fi
- 
-   # Copy job_template into home dir 
-   sudo cp -r /home/cloud/job_template /home/"$UNAME$i"/
+
+   # Copy JobTemplate into home dir 
+   sudo cp -r ../JobTemplate /home/"$UNAME$i"/JobTemplate
    
    # Distribute tokens from vault 
-   sudo chmod 777 /home/$UNAME$i/job_template/secret/
-   scp cloud@141.5.111.67:/home/cloud/vault/$UNAME$i.token /home/$UNAME$i/job_template/secret 
-
-   # import gpg keys: public key of secure HPC server
-   # public-private keypair for detached signature 
-   # gpg --import /tmp/agqkey
-   # gpg --import /tmp/user_priv
+   sudo mkdir /home/"$UNAME$i"/JobTemplate/secret
+   sudo chmod 777 /home/$UNAME$i/JobTemplate/secret/
+   scp cloud@141.5.111.67:/home/cloud/vault/$UNAME$i.token /home/$UNAME$i/JobTemplate/secret 
 
    sudo chown -R $UNAME$i:$UNAME$i /home/$UNAME$i
 

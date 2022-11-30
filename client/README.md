@@ -7,6 +7,7 @@
   - `pubKeyOfServer`: Public key for encrypting command.sh
   - `LocalUserKey`: Private key of the user for authenticating user on the HPC server
   - `hpc-frontend`: The ID associated with the HPC frontend 
+  - `path-to-data`: Path to the data directory
 - End-to-end automation of the secure workflow
 - Prepares input and output data containers, keys
 - Prepare command.sh to be executed on the secure hpc server (as `run.sh`) 

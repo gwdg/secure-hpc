@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Prepare input data container
-echo "YES" | utils/create_data_container.sh inputdata /mnt 50
-cp <path-to-data-dir>/* /mnt/inputdata/							
+echo "YES" | utils/create_data_container.sh inputdata /mnt/<uid> 50
+cp <path-to-data>/* /mnt/<uid>/inputdata/							
 # Verifies data has been copied
-ls /mnt/inputdata/								
+ls /mnt/<uid>inputdata/								
 # Unmounts input data container
 utils/umount_data_container.sh inputdata /mnt				
 # Copies inputdata.img onto hpc server
