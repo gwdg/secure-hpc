@@ -8,7 +8,7 @@ PUBKEY_SERVER="agq001"
 PRIVKEY_USER="user_key" 
 
 # Prepare input data container
-echo "YES" | utils/create_data_container.sh inputdata /mnt/$UID 50
+echo "YES" | $PATH_TO_UTILS/create_data_container.sh inputdata /mnt/$UID 50
 cp $PATH_TO_DATA/* /mnt/$UID/inputdata/
 # Verifies data has been copied
 ls /mnt/inputdata/
@@ -18,7 +18,7 @@ $PATH_TO_UTILS/umount_data_container.sh inputdata /mnt/$UID
 scp inputdata.img $HPC_UID@transfer-scc.gwdg.de:/scratch/users/$HPC_UID/secure
 
 # Prepare output container
-echo "YES" | ../$UTILS_DIR/create_data_container.sh outdata /mnt 500
+echo "YES" | ../$PATH_TO_UTILS/create_data_container.sh outdata /mnt 500
 # Unmounts
 $PATH_TO_UTILS/umount_data_container.sh outdata /mnt
 # Create a directory on the server
