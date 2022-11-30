@@ -107,7 +107,7 @@ Once you upload your LDAP, you should be able to access the hpc cluster via ssh.
 \tutorial{Optional: End-to-End Automation}{5}
 Once you login to the secure client via ssh, you can access \texttt{automatic.sh}, an end-to-end automation of the secure workflow that the rest of the tutorial walks you through. 
 The script prepares your data container, encrypts uploads it, prepares yoxur batch script and executes it after encryption as well. Finally, the output is presented in a data container, mounted and ready to use. 
-Before you run it, be sure to substitute the parametrized variables \texttt{$<$LUKScontainername$>$},\texttt{ $<$uid$>$}, \texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$} in \texttt{command.sh.template}. 
+Before you run it, be sure to substitute the parametrized variables \texttt{ $<$uid$>$}, \texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$} (same as \texttt{$<$LUKScontainername$>$}) in \texttt{command.sh.template}. 
 
 You can run \texttt{automatic.sh} with your \texttt{UID} of the secure client and \texttt{HPC-UID} as follows:\\
 \texttt{./automatic.sh <uid> <hpc\_uid> <LUKScontainername>} \\
@@ -172,7 +172,7 @@ In order to retrieve the keys later, we are receiving single-use and short-lived
 These tokens need to be included in the batch script, so that the keys can be retrieved on a secure node. 
 
 The general \textit{command}, i.e. the bash-commands, is written in \texttt{command.sh.template}. 
-Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables \texttt{$<$LUKScontainername$>$},\texttt{ $<$uid$>$}, \\\texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$}. 
+Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables \texttt{ $<$uid$>$}, \texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$}. 
 (Note that \texttt{$<$LUKScontainername$>$} is the same as \texttt{$<$containername$>$}).
 
 You can now execute \texttt{prepare\_scripts.sh} with: \\
