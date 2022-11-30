@@ -4,13 +4,17 @@ Scripts for implementation of Secure HPC on a VM. For description of the scripts
 
 ### automatic.sh
 
-Usage: ./automatic.sh <ID> <UID_on_HPC> 
+Usage: `./automatic.sh <local-uid> <hpc_uid> <LUKScontainername>` 
 
 Used variables: 
-- `UID`: UserID on local
+- `LOCAL_UID`: UserID on local
 - `HPC-UID`: User ID on the HPC server
+- `DATA_CONTAINER`: Your chosen name for the LUKS container
 - `PATH_TO_DATA`: Path to data folder
 - `PATH_TO_UTILS`: Path to directory containing wrapper scripts
 - `PUBKEY_SERVER`: Public key of the hpc server for encryption of command.sh
 - `PRIVKEY_USER`: Private key of the user for identification on the cluster
 
+### prepare_scripts
+
+Usage: `./prepare_scripts.sh <local-uid> <LUKScontainername>`
