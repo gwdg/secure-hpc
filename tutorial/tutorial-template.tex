@@ -76,7 +76,7 @@ Please connect now to the secure client with:\\
 
 You should now be in your \texttt{\$HOME} and you can enter our \texttt{job\_template} directory with \cmd{cd job\_template}. 
 Here you will find \texttt{src} directory containing a Singularity/Apptainer recipe. 
-This can be used to built your on container image to run \textit{BART}. 
+This can be used to build your container image to run \textit{BART}. 
 The \texttt{data} directory contains your sample input data. 
 In a real use case, this would be your medical data from a patient, which requires the highest protection. 
 
@@ -88,9 +88,9 @@ You can access this via \texttt{ssh} again, but this time, instead of access via
     \label{fig:screenshot1}
 \end{figure*}
 You can do that by signing into \href{https://www.gwdg.de} with your credentials. 
-Once you're in, go to "Mein Konto" via the drop-down on the top right. 
+Once you're in, go to ``Mein Konto" via the drop-down on the top right. 
 
-Under "Andere", you should see an option "Bearbeiten" for adding/removing SSH public keys. 
+Under ``Andere", you should see an option ``Bearbeiten" for adding/removing SSH public keys. 
 Copy your public key present at \texttt{/home/UID/.ssh/id\_rsa}. 
 
 \begin{figure*}[!ht]
@@ -105,6 +105,12 @@ Copy your public key present at \texttt{/home/UID/.ssh/id\_rsa}.
     \label{fig:screenshot3}
 \end{figure*}
 Once you upload your LDAP, you should be able to access the hpc cluster via ssh. 
+
+\tutorial{Optional: End-to-End Automation}{5}
+Once you login to the secure client via ssh, you can access \texttt{automatic.sh}, an end-to-end automation of the secure workflow that the rest of the tutorial walks you through. 
+You can run it with your \texttt{UID} of the secure client and \texttt{HPC-UID} as follows: \\
+\texttt{./automatic.sh <uid> <hpc\_uid> <LUKScontainername>} \\
+It starts with preparing your data containers, 
 
 \tutorial{Encrypting the Data}{10}
 The first step in the secure workflow is to encrypt your data. 
@@ -133,8 +139,8 @@ We also have an wrapper script for that, you can just do: \\
 \\
 If you look into your \texttt{\$pwd} you will see two new files:
 \begin{itemize}
-	\item $<$containername$>$.img
-	\item $<$containername$>$.key
+	\item \texttt{$<$containername$>$.img}
+	\item \texttt{$<$containername$>$.key}
 \end{itemize}
 The *.img is your LUKS data container, which contains your encrypted data. This is secure to upload to the shared HPC system. 
 The *.key file contains the key necessary to decrypt your data. This \textbf{must never} be uploaded to the HPC system, since an attacker would then have access to the encrypted data and also to the decryption key. 
@@ -164,12 +170,13 @@ Due to the encryption of our data and the encryption of the Singularity/Apptaine
 These keys are uploaded into our Key Management System, i.e. Vault. 
 In order to retrieve the keys later, we are receiving single-use and short-lived tokens from Vault. 
 These tokens need to be included in the batch script, so that the keys can be retrieved on a secure node. 
-\\
-The general \textit{command}, i.e. the bash-commands, is written in \texttt{command.sh.template}. Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables $<$LUKScontainername$>$, $<$uid$>$, \\$<$hpc-uid$>$ and $<$containername$>$ in \textbf{both} scripts. 
-(Please Notice that unfortunately $<$LUKScontainername$>$ is the same as$<$containername$>$ )
-Please do the same at the bottom of \texttt{prepare\_scripts.sh}. \\
-Afterwards you can look at \texttt{prepare\_scripts.sh} and substitute the key name for your LUKS container.
 
+The general \textit{command}, i.e. the bash-commands, is written in \texttt{command.sh.template}. 
+Please open it in an editor, like vim, emacs or nano and substitute \textbf{only} the paramerized variables \texttt{$<$LUKScontainername$>$},\texttt{ $<$uid$>$}, \\\texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$} in \textbf{both} scripts. 
+(Please Notice that unfortunately \texttt{$<$LUKScontainername$>$} is the same as \texttt{$<$containername$>$}).
+
+Please do the same at the bottom of \texttt{prepare\_scripts.sh}. 
+Afterwards you can look at \texttt{prepare\_scripts.sh} and substitute the key name for your LUKS container.
 You can then execute it with: \\
 \cmd{./prepare\_scripts.sh} \\
 This will upload your keys to Vault, and will insert the received tokens into a new file called \texttt{command.sh}. This was automatically derived by \texttt{prepare\_scripts.sh} by your \texttt{command.sh.template}. 
@@ -179,14 +186,9 @@ To summarize, your resulted \texttt{command.sh} is the bash-script,  that you wa
 \tutorial{Encrypting your Batch Script}{10}
 
 Since it does contain the tokens to retrieve the keys from Vault, we should encrypt it as well. 
-This can be done with \texttt{gpg}, for which a public key is already imported on the secure client. 
-In addition, there is a helper script in \texttt{/opt/secure\_workflow/encrypt\_script.sh}. Before you call it, you need to import your keys as follows: 
+This can be done with \texttt{gpg}, for which you will import a public key on the secure client: \\
 \cmd{gpg --import /tmp/agqkey}\\
-\cmd{gpg --import /tmp/user\_priv}\\ 
-
-You will be prompted for a password. In this case, it is just \texttt{test}.
-
-You can now call the \texttt{encrypt\_script.sh} as follows: \\ 
+There is a helper script,  \texttt{/opt/secure\_workflow/encrypt\_script.sh}, for encryption, which you can call as follows: \\
 \cmd{/opt/secure\_workflow/encrypt\_script.sh command.sh agq001} \\
 \textbf{If you get a warning, no problem, just go ahead and say yes} \\
 This will encrypt your \texttt{command.sh} and will store it in \texttt{command.sh.asc}. 
@@ -233,11 +235,13 @@ EOF
 
 \tutorial{Signing your Batch Script and Securely Submitting Your Job}{10}
 Since the integrity of the secure nodes depends on the restricted access, to prevent an attacker from accessing the node and tampering with it, we need to sign our batch script, to authenticate ourselves on the secured node. 
-For this, a public-private key pair was generated, where the public key is imported on the secure node and the private key is only stored on the secure client. With this private key, we can do a detached signature. 
+For this, a public-private key pair was generated, where the public key is imported on the secure node and the private key is only stored on the secure client. 
+With this private key, we can do a detached signature. 
 \\
 \textbf{Please realize: The integrity of this entire workflow depends on the security of this private key with which we authenticate ourselves.}
 \\
-You can perform the detached signature with: \\
+We import the private key, and perform the detached signature with: \\
+\cmd{gpg --import /tmp/user\_priv}\\ 
 \cmd{gpg --detach-sign --local-user user\_key -o run.sh.sig run.sh} \\
 \textbf{You will be prompted for a passphrase. It is: test} \\
 This will read in your \texttt{run.sh} create an additional file called \texttt{run.sh.sig}. 
