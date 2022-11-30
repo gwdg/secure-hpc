@@ -88,9 +88,7 @@ You can access this via \texttt{ssh} again, but this time, instead of access via
     \label{fig:screenshot1}
 \end{figure*}
 You can do that by signing into \href{https://www.gwdg.de} with your credentials. 
-Once you're in, go to ``Mein Konto" via the drop-down on the top right. 
-
-Under ``Andere", you should see an option ``Bearbeiten" for adding/removing SSH public keys. 
+Once you're in, go to ``Mein Konto" via the drop-down on the top right. Under ``Andere", you should see an option ``Bearbeiten" for adding/removing SSH public keys. 
 Copy your public key present at \texttt{/home/UID/.ssh/id\_rsa}. 
 
 \begin{figure*}[!ht]
@@ -110,7 +108,8 @@ Once you upload your LDAP, you should be able to access the hpc cluster via ssh.
 Once you login to the secure client via ssh, you can access \texttt{automatic.sh}, an end-to-end automation of the secure workflow that the rest of the tutorial walks you through. 
 The script prepares your data container, encrypts uplaods it, prepares your batch script and executes it after encryption as well. Finally, the output is presented in a data container, mounted and ready to use. 
 Before you run it, be sure to substitute the parametrized variables \texttt{$<$LUKScontainername$>$},\texttt{ $<$uid$>$}, \texttt{$<$hpc-uid$>$} and \texttt{$<$containername$>$} in \texttt{command.sh.template}. 
-You can run it with your \texttt{UID} of the secure client and \texttt{HPC-UID} as follows:\\
+
+You can run \texttt{automatic.sh} with your \texttt{UID} of the secure client and \texttt{HPC-UID} as follows:\\
 \texttt{./automatic.sh <uid> <hpc\_uid> <LUKScontainername>} \\
 
 \tutorial{Encrypting the Data}{10}
