@@ -4,13 +4,27 @@ container_name=$1
 
 user=$(whoami)
 
-key_file=${container_name}.key 									# Created when calling create_data_container.sh
+key_file=${container_name}.key
+key_file=$(realpath $key_file)
 container_file=${container_name}.img
 
-sudo cryptsetup luksOpen $container_file $container_name --key-file $key_file			# Encrypt img file in LUKs format with key file
-sudo mkdir -p /mnt/$container_name								# Create directory in mount path	
+if ! [ -z ${LOCAL_TMPDIR+x} ]; then
+    cp $container_file $LOCAL_TMPDIR
+    cd $LOCAL_TMPDIR
+elif ! [ -z ${TMP+x} ]; then
+    cp $container_file $TMP
+    cd $TMP
+else 
+    cp $container_file /tmp/
+    cd /tmp
+fi
 
-sudo mount -o rw,noexec,nosuid,nodev -t ext4 /dev/mapper/$container_name /mnt/$container_name	# Mount device $container_name (Already created?) to path
+echo $key_file
+
+sudo cryptsetup luksOpen $container_file $container_name --key-file $key_file
+sudo mkdir -p /mnt/$container_name
+
+sudo mount -o rw,noexec,nosuid,nodev -t ext4 /dev/mapper/$container_name /mnt/$container_name
 sudo chmod 711 -R /mnt/$container_name
 
 sudo chown -R $user /mnt/$container_name

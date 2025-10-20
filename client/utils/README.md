@@ -19,3 +19,4 @@ Usage: `mount_data.sh <container_name>`
 ### encrypt_script.sh
 Usage: `encrypt_script.sh <file_name> <recipient>`
 - Generates <file_name>.asc with recipient being slurm
+
