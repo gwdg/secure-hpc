@@ -1,33 +1,32 @@
 #!/bin/bash
 
+# /opt/secure_workflow/deactivate_slurmd.sh
+
 token_setup=<DEFAULT_TOKEN>
 token=<WRAPPED_TOKEN>
 
-export VAULT_ADDR='https://141.5.111.67:81'
+exec_dir=<EXEC_DIR>
+
+export VAULT_ADDR='https://kms.hpc.gwdg.de'
 VAULT_TOKEN=$token_setup
 
-token=$(vault unwrap -field=token $token)
+token=$(vault unwrap -tls-skip-verify -field=token $token)
 
 export VAULT_TOKEN=$token
 
-getkey user_2 inputdata <hpc-uid>
-getkey user_2 rsa_pri <hpc-uid>
-getkey user_2 outdata <hpc-uid>
+getkey user_2 outdata
+getkey user_2 rsa_pri
 
 echo "Mounting data.."
-mount_data inputdata
-mount_data outdata
+mount_data outdata $exec_dir
 
-# Insert Singularity Call
-cd /scratch/users/sachut/home
-/usr/local/bin/singularity exec --nv --pem-path=/keys/rsa_pri.key --bind /data/<hpc-uid>/inputdata/:/data/,/data/<hpc-uid>/outdata/:/output/,/scratch/users/<hpc-uid>/neuro/license:/fs_license \
-	/scratch/users/<hpc-uid>/home/fastsurfer.sif /fastsurfer/run_fastsurfer.sh \
-                      --fs_license /fs_license/license.txt \
-                      --t1 /data/57779789.nii \
-                      --sid 5779789 --sd /output \
-                      --parallel --threads 16 --batch 8 --order 3 --seg_only
+ls /keys/${SLURM_JOB_ID}
+
+# TODO: Do not hard code the username here
+/usr/local/bin/singularity exec --nv --pem-path=/keys/${SLURM_JOB_ID}/rsa_pri.key --bind /data/u19997/${SLURM_JOB_ID}/outdata/:/output/ \
+		$exec_dir/container.sif bash -c 'echo "In the input file was: \"$(cat /output/input.txt)\"" > /output/output.txt'
+ls /data/u19997/${SLURM_JOB_ID}/outdata
 
 echo "UMounting data.."
-umount_data inputdata
 umount_data outdata
 

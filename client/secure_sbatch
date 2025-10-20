@@ -1,0 +1,106 @@
+#!/bin/bash
+
+#set -x
+
+USER="YOURUSERNAME"
+# example: USER="uXXXXX"
+LOGIN_NODE="glogin7.hpc.gwdg.de"
+# example: LOGIN_NODE="glogin10.hpc.gwdg.de"
+EXEC_DIR="/mnt/ceph-hdd/cold/your_path"
+# example: EXEC_DIR="/mnt/ceph-hdd/cold/..."
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo "$0 - start secureHPC job"
+      echo " "
+      echo "$0 [options] [arguments]"
+      echo " "
+      echo "options:"
+      echo "-h, --help                show brief help"
+      echo "-p, --proxy               run vault operations through proxy, if executed on VM"
+      exit 0
+      ;;
+    -p|--proxy)
+      shift
+      # kill all existing ssh proxy commands
+      for pid in $(ps -ef | grep "ssh -fN -D 2020 $USER@$LOGIN_NODE" | awk '{print $2}'); do kill -9 $pid; done
+      # create new ssh proxy
+      ssh -fN -D 2020 $USER@$LOGIN_NODE
+      # tell vault to use the proxy
+      export HTTPS_PROXY="socks5://127.0.0.1:2020"
+      export VAULT_ADDR="https://kms.hpc.gwdg.de"
+      echo "vault status:"
+      vault status
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# Prepare Output container
+
+./utils/umount_data_container.sh outdata /mnt
+
+echo "YES" | ./utils/create_data_container.sh outdata /mnt 100
+
+# copy data into outdata container
+mount
+cp -rv data/* /mnt/outdata/
+tree /mnt/outdata # debug
+
+./utils/umount_data_container.sh outdata /mnt
+
+scp outdata.img $USER@$LOGIN_NODE:$EXEC_DIR
+
+# prepare command.sh
+
+rm command.sh.asc
+
+# replace tokens in command.sh.template and send keys
+./prepare_scripts.sh $EXEC_DIR
+
+# encrypt command.sh into commans.sh.asc
+./utils/encrypt_script.sh command.sh agq001
+
+cat command.sh.asc
+
+#prepare run.sh
+
+rm run.sh
+
+echo "#!/bin/bash" > run.sh
+echo "/usr/bin/decrypt_and_execute <<EOF" >> run.sh
+cat command.sh.asc >> run.sh
+echo -n "EOF" >> run.sh
+
+cat run.sh
+
+# get signature for run.sh
+rm run.sh.sig
+
+gpg --detach-sign --local-user user_key -o run.sh.sig run.sh
+
+# submit job with run.sh
+
+scp run.sh run.sh.sig $USER@$LOGIN_NODE:$EXEC_DIR
+#slurmid=$(ssh $USER@$LOGIN_NODE 'cd $EXEC_DIR /usr/local/slurm/slurm/current/install/bin/sbatch --reservation=secure-hpc run.sh' | gawk '{print $4}')
+slurmid=$(
+    ssh "$USER@$LOGIN_NODE" \
+        "cd $(printf '%q' "$EXEC_DIR") && \
+         /usr/local/slurm/slurm/current/install/bin/sbatch --reservation=secure-hpc run.sh" \
+    | gawk '{print $4}'
+)
+echo "Print SlurmID"
+echo $slurmid
+sleep 5
+
+# check if job is still running
+while [[ $(ssh $USER@$LOGIN_NODE "/usr/local/slurm/slurm/current/install/bin/sacct -b -j $slurmid | gawk '{print $2}' | awk 'FNR > 2' | grep -v COMPLETED") != "" ]] ; do echo "Waiting for job to end!" ; sleep 10 ; done
+scp $USER@$LOGIN_NODE:$EXEC_DIR/outdata.img ./outdata.img
+
+# finished: mount outdata to view it
+echo 'finished'
+
+./utils/mount_data.sh outdata

@@ -1,31 +1,13 @@
-# run_workflow
+TODO write how to use (or just reference to the hpc docs)
 
-### automatic.sh
-- Used variables 
-  - `uid`: Local User ID
-  - `hpc-uid`: User ID on the HPC server
-  - `pubKeyOfServer`: Public key for encrypting command.sh
-  - `LocalUserKey`: Private key of the user for authenticating user on the HPC server
-  - `hpc-frontend`: The ID associated with the HPC frontend 
-  - `path-to-data`: Path to the data directory
-- End-to-end automation of the secure workflow
-- Prepares input and output data containers, keys
-- Prepare command.sh to be executed on the secure hpc server (as `run.sh`) 
-- Creates detached signature, copies `run.sh` and `run.sh.sig` onto scratch/home and executes `run.sh` 
-- Copies output image file to local and mounts for use
+Files that have to be added to work
+- The server key: `agq001.key`
+- The user owned keypair for the container encryption: `rsa_pri.pem`, `rsa_pub.pem`
+- The vault token given by us `secret/user_2.token`
 
-### prepare_scripts.sh
-Usage: `prepare_scripts.sh`
-- Creates default and wrapped tokens and copies into `command.sh`
-- Sends keys for inputdata, outdata and rsi_private to the vault 
-
-### sendkey.sh
-Usage: `sendkey.sh <path> @<key_file>`
-- Sends key file to the vault 
-
-### command.sh
-- Encrypted with `encrpt_script.sh` and copied into `run.sh`
-- Contains singularity call
-
-### command.sh.template
-- Template file for `command.sh`, contains placeholders for tokens
+Also todos
+- [ ] `command.sh.template`: dont hardcode the bindmount location; get from `secure_sbatch`
+- [ ] `secure_sbatch`: Don't hardcode node names (see `encrypt_script.sh`)
+- [ ] `secure_sbatch`: Don't hardcode reservation name (see `encrypt_script.sh`)
+- [ ] `prepare_scripts.sh` and `command.sh.template`: Don't hardcode `user_2`
+  - TODO Or is `user_2` just a misnamed policy name and it can stay the same between users?
