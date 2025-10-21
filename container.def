@@ -1,0 +1,19 @@
+Bootstrap: docker
+From: ubuntu
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    # Install any packages you need here
+    apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        wget \
+        ca-certificates \
+        tree \
+        pkg-config
+
+    # Any optional setups, custom libaries etc
+    echo "Additional stuff... pip, Rscript..."
+
+%runscript
+    # Will be set in the command.sh
+    exec echo "Hello World"
