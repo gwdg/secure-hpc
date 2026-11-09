@@ -44,7 +44,6 @@ This repository contains **only the client side**. One script, `secure_sbatch`, 
 | [`command.sh.template`](../command.sh.template) | The job that runs on the secure node ([section 6](#6-the-job-on-the-secure-node)). Your own command goes here. |
 | [`container.def`](../container.def) | Example Apptainer recipe (Ubuntu with a few tools). |
 | [`sendkey.sh`](../sendkey.sh) | Stores one value in Vault. |
-| [`utils/sendkey.sh`](../utils/sendkey.sh) | Identical copy of `sendkey.sh`. Not used by the other scripts. |
 | [`utils/create_data_container.sh`](../utils/create_data_container.sh) | Creates an encrypted disk image and mounts it. |
 | [`utils/umount_data_container.sh`](../utils/umount_data_container.sh) | Unmounts and closes an image, frees its loop devices. |
 | [`utils/mount_data.sh`](../utils/mount_data.sh) | Opens and mounts a downloaded image. |
