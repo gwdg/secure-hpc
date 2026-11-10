@@ -20,7 +20,10 @@ def main() -> None:
     parser_health.set_defaults(func=lambda args, cfg: health.run(cfg, args.client_only))
 
     parser_submit = subparsers.add_parser("submit", help="Run a job on the secure node")
-    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg))
+    parser_submit.add_argument(
+        "--proxy", action="store_true", help="Reach Vault through a SOCKS proxy via the login node"
+    )
+    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg, args.proxy))
 
     args = parser.parse_args()
 

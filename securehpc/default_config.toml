@@ -10,7 +10,6 @@ sacct = "/usr/local/slurm/slurm/current/install/bin/sacct"
 address = "https://kms.hpc.gwdg.de"
 user = "user_2"
 token_file = "~/.config/securehpc/vault.token"  # path only, never the token itself
-proxy = false  # SOCKS proxy through the login node
 
 [gpg]
 node_key = "agq001"  # public key of the secure node

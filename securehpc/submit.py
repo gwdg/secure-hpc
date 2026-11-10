@@ -6,6 +6,6 @@ from securehpc.config import Config
 log = logging.getLogger(__name__)
 
 
-def run(cfg: Config) -> None:
+def run(cfg: Config, proxy: bool) -> None:
     utils.cache_sudo_credentials()
-    log.info("submit is not implemented yet")
+    log.info("submit (proxy=%s) is not implemented yet", proxy)

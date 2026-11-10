@@ -32,7 +32,6 @@ def test_default_config_loads(config_path: Path, tmp_path: Path, monkeypatch: py
     monkeypatch.setenv("HOME", str(tmp_path))
     config.ensure_config()
     cfg = config.load_config()
-    assert cfg.vault.proxy is False
     assert cfg.vault.token_file == tmp_path / ".config" / "securehpc" / "vault.token"  # ~ expanded
 
 

@@ -36,7 +36,6 @@ class VaultConfig:
     address: str
     user: str
     token_file: Path
-    proxy: bool
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "VaultConfig":
@@ -44,7 +43,6 @@ class VaultConfig:
             address=d["address"],
             user=d["user"],
             token_file=Path(d["token_file"]).expanduser(),
-            proxy=d["proxy"],
         )
 
 
