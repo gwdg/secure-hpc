@@ -14,3 +14,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["securehpc"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.4",
+]
