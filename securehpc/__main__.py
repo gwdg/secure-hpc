@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from securehpc import config, health
+from securehpc import config, health, submit
 from securehpc.config import ConfigError
 from securehpc.shell import CommandError
 
@@ -18,6 +18,9 @@ def main() -> None:
     parser_health = subparsers.add_parser("health", help="Check the setup with a dummy run")
     parser_health.add_argument("--client-only", action="store_true", help="Only check the local machine")
     parser_health.set_defaults(func=lambda args, cfg: health.run(cfg, args.client_only))
+
+    parser_submit = subparsers.add_parser("submit", help="Run a job on the secure node")
+    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg))
 
     args = parser.parse_args()
 
