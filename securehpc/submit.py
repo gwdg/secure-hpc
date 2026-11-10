@@ -1,5 +1,6 @@
 """The submit workflow, top to bottom in the order the steps run."""
 
+import hashlib
 import importlib.resources
 import logging
 import shlex
@@ -33,6 +34,7 @@ def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
 
     utils.cache_sudo_credentials()
     close_previous()
+    upload_container(cfg, run_cfg)
     log.info("submit (proxy=%s) is not implemented yet", proxy)
 
 
@@ -67,6 +69,33 @@ def _loop_devices() -> list[str]:
     return devices
 
 
+# ---------- container ----------
+
+REMOTE_CONTAINER = "container.sif"  # fixed name inside exec_dir, also hardcoded in command.sh.template
+
+
+def upload_container(cfg: Config, run_cfg: RunConfig) -> None:
+    """Upload the local container to exec_dir/container.sif, unless the same file is already there.
+
+    Compares full sha256 hashes. A broken earlier upload has a different hash, so it is simply uploaded again.
+    """
+    remote = f"{run_cfg.exec_dir}/{REMOTE_CONTAINER}"
+    with run_cfg.container.open("rb") as f:
+        local_hash = hashlib.file_digest(f, "sha256").hexdigest()
+    # prints nothing if the file does not exist yet
+    out = utils.ssh(cfg, "sh", "-c", 'test ! -f "$1" || sha256sum "$1"', "sh", remote)
+    remote_hash = out.split()[0] if out.strip() else None
+    log.debug("Container hash: local %s, remote %s", local_hash, remote_hash)
+    if remote_hash == local_hash:
+        log.info("Container on the cluster is up to date")
+        return
+
+    size_mb = run_cfg.container.stat().st_size / 2**20
+    log.info("Uploading %s (%.0f MB) to %s", run_cfg.container, size_mb, remote)
+    # TODO: show progress. utils.run captures scp's output, so a big upload looks frozen.
+    utils.run(["scp", str(run_cfg.container), f"{utils.ssh_target(cfg)}:{remote}"])
+
+
 # ---------- job script ----------
 # The job script: runs on the secure node, encrypted for the node and signed by the user.
 #
@@ -94,7 +123,6 @@ def render_command(cfg: Config, run_cfg: RunConfig, default_token: str, wrapped_
         "<VAULT_ADDR>": cfg.vault.address,
         "<VAULT_USER>": cfg.vault.user,
         "<CLUSTER_USER>": cfg.cluster.user,
-        "<CONTAINER>": run_cfg.container,
         # last, so placeholder-like text inside the command is left alone
         "<COMMAND>": shlex.quote(run_cfg.command.strip()),
     }

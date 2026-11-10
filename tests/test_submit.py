@@ -1,3 +1,4 @@
+import hashlib
 import importlib.resources
 import shlex
 import subprocess
@@ -77,6 +78,48 @@ def test_close_previous_nothing_to_do(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(submit, "MAPPER", tmp_path / "nope")
     submit.close_previous()
     assert [c for c in calls if c[0] == "sudo"] == []
+
+
+# ---------- container ----------
+
+
+def upload_calls(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, remote_out: str) -> list[list[str]]:
+    """Run upload_container against a fake cluster whose sha256sum prints remote_out; return the scp calls."""
+    calls: list[list[str]] = []
+
+    def run(cmd: list[str], input: str | None = None) -> str:
+        calls.append(cmd)
+        return remote_out if cmd[0] == "ssh" else ""
+
+    monkeypatch.setattr(utils, "run", run)
+    (tmp_path / "container.sif").write_bytes(b"container")
+    run_cfg = make_original_run()
+    run_cfg = RunConfig.from_dict({**vars(run_cfg), "data": ".", "container": "container.sif"}, tmp_path)
+    submit.upload_container(make_original_config(), run_cfg)
+    return [c for c in calls if c[0] == "scp"]
+
+
+CONTAINER_SHA256 = hashlib.sha256(b"container").hexdigest()
+
+
+def test_upload_container_same_hash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    remote = f"{CONTAINER_SHA256}  /mnt/ceph-hdd/cold/u19997/secure/container.sif\n"
+    assert upload_calls(monkeypatch, tmp_path, remote) == []
+
+
+def test_upload_container_other_hash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    remote = f"{'0' * 64}  /mnt/ceph-hdd/cold/u19997/secure/container.sif\n"
+    assert upload_calls(monkeypatch, tmp_path, remote) == [
+        [
+            "scp",
+            str(tmp_path / "container.sif"),
+            "u19997@glogin7.hpc.gwdg.de:/mnt/ceph-hdd/cold/u19997/secure/container.sif",
+        ]
+    ]
+
+
+def test_upload_container_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    assert len(upload_calls(monkeypatch, tmp_path, "")) == 1
 
 
 # ---------- job script ----------

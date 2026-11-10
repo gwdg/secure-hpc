@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from securehpc import checks
+from securehpc import checks, utils
 from securehpc.config import Config, RunConfig
 
 DEFAULT_TEXT = (importlib.resources.files("securehpc") / "default_config.toml").read_text()
@@ -17,6 +17,18 @@ ReservationName=secure-hpc-example StartTime=2026-01-01T00:00:00 EndTime=2027-01
    Users=u00001,u00002,u00003 Groups=(null) Accounts=(null) Licenses=(null) State=ACTIVE BurstBuffer=(null)
    MaxStartDelay=(null)
 """
+
+
+SIF_LIST_ENCRYPTED = """\
+------------------------------------------------------------------------------
+ID   |GROUP   |LINK    |SIF POSITION (start-end)  |TYPE
+------------------------------------------------------------------------------
+1    |1       |NONE    |32176-32208               |Def.FILE
+2    |1       |NONE    |32208-34400               |JSON.Generic
+3    |1       |NONE    |34400-34912               |Cryptographic Message (PEM/RSA-OAEP)
+4    |1       |NONE    |36864-31932416            |FS (Encrypted squashfs/*System/amd64)
+"""
+SIF_LIST_PLAIN = SIF_LIST_ENCRYPTED.replace("FS (Encrypted squashfs", "FS (Squashfs")
 
 
 def make_config(text: str = DEFAULT_TEXT) -> Config:
@@ -42,13 +54,29 @@ def test_placeholders_replaced() -> None:
     assert checks.check_placeholders(make_config(DEFAULT_TEXT.replace("uXXXXX", "u12345"))) == []
 
 
-def test_run_ok(tmp_path: Path) -> None:
+def test_run_ok(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    (tmp_path / "container.sif").write_text("x")
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None: SIF_LIST_ENCRYPTED)
     assert checks.check_run(make_run(tmp_path)) == []
 
 
 def test_run_problems(tmp_path: Path) -> None:
-    run_cfg = make_run(tmp_path, exec_dir="/x/uXXXXX/secure", data="nope", command="  \n")
-    assert len(checks.check_run(run_cfg)) == 3
+    run_cfg = make_run(tmp_path, exec_dir="/x/uXXXXX/secure", data="nope", command="  \n", container="nope.sif")
+    assert len(checks.check_run(run_cfg)) == 4
+
+
+@pytest.mark.parametrize(
+    ("sif_list", "encrypted"),
+    [
+        (SIF_LIST_ENCRYPTED, True),
+        (SIF_LIST_PLAIN, False),
+        (SIF_LIST_ENCRYPTED + SIF_LIST_PLAIN.splitlines()[-1], False),  # one plain partition is enough to refuse
+        ("", False),  # no filesystem at all: refuse rather than guess
+    ],
+)
+def test_container_encrypted(monkeypatch: pytest.MonkeyPatch, sif_list: str, encrypted: bool) -> None:
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None: sif_list)
+    assert (checks.check_container_encrypted(Path("c.sif")) == []) == encrypted
 
 
 def test_secret_file_missing(tmp_path: Path) -> None:

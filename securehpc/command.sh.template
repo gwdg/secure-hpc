@@ -24,7 +24,7 @@ ls /keys/${SLURM_JOB_ID}
 
 # TODO: Do not hard code the username here
 /usr/local/bin/singularity exec --nv --pem-path=/keys/${SLURM_JOB_ID}/rsa_pri.key --bind /data/<CLUSTER_USER>/${SLURM_JOB_ID}/outdata/:/output/ \
-		$exec_dir/<CONTAINER> bash -c <COMMAND>
+		$exec_dir/container.sif bash -c <COMMAND>
 ls /data/<CLUSTER_USER>/${SLURM_JOB_ID}/outdata
 
 echo "UMounting data.."

@@ -16,6 +16,7 @@ Secure HPC is GWDG's implementation of the paper ["A Secure Workflow for Shared 
 8. [Files and state](#8-files-and-state)
 9. [Configuration values](#9-configuration-values)
 10. [Behaviour notes](#10-behaviour-notes)
+11. [Changes in the Python client](#11-changes-in-the-python-client)
 
 ---
 
@@ -648,3 +649,44 @@ How the scripts behave in situations the steps above don't cover.
 - **The Slurm log is plain text.** The example job lists the key folder and the data folder, so file names appear in `EXEC_DIR/slurm-<jobid>.out`.
 - **Generated files aren't ignored by git.** The repository has no `.gitignore`, so tokens, keys and images created in the repository folder show up as new files.
 - **The comments don't always match the code.** `utils/README.md` mentions `../run_workflow` and says `mount_data.sh` encrypts the image (it opens it). Comments in `utils/encrypt_script.sh` mention a `.gpg` file (the output is `.asc`). One comment in `secure_sbatch` says `commans.sh.asc`.
+
+---
+
+## 11. Changes in the Python client
+
+Sections 1 to 10 describe the original bash client, now in `old/`. The Python client (`securehpc submit run.toml`) keeps the interface to the secure node unchanged: `command.sh` and `run.sh` are byte-for-byte the same as the original's (checked by tests against outputs of the original scripts). These are the deliberate changes to the workflow.
+
+### Configuration instead of editing scripts
+
+| Original | Python client |
+|---|---|
+| Values hardcoded in `secure_sbatch`, `prepare_scripts.sh` and `command.sh.template` | `~/.config/securehpc/config.toml` for the machine and account: cluster user, login node, reservation, Slurm path, Vault, GPG keys, container key |
+| Command edited in `command.sh.template`, input in `data/` | A `run.toml` per job: `exec_dir`, `container`, `data`, `image_size_mb`, `command` |
+| User name `u19997` hardcoded in the node's data path | `cluster.user` from the config |
+| `sbatch` and `sacct` paths | One `slurm_bin` folder |
+| `-p` / `--proxy` | `--proxy` flag on `submit` |
+
+### Container upload
+
+The original expected the encrypted container to be uploaded by hand to `EXEC_DIR/container.sif`. Now `container` in `run.toml` points to a local file, and on every submit:
+
+1. The local file must be an encrypted SIF (`apptainer sif list` shows only `Encrypted squashfs` partitions). Otherwise nothing is submitted. Automatic uploads would otherwise make it easy to copy an unencrypted container to the untrusted shared storage by mistake.
+2. Its sha256 is compared with `sha256sum exec_dir/container.sif` on the cluster. If they differ, or the file is missing, it is uploaded with `scp`. A broken earlier upload has a different hash, so it is simply uploaded again.
+
+The name on the cluster is always `container.sif`, as in the original. `apptainer` is now a required tool on the client.
+
+### Checks and errors
+
+- **Errors stop the run.** The original carried on after any failed command.
+- **Checks before anything happens:** tools installed, config placeholders replaced, Vault token and container key present and private (`chmod 600`), GPG keys in the keyring, data folder and container present, container encrypted. All problems are listed at once, and nothing is touched on the client or the cluster.
+- **`--debug`** adds verbose logging and slower checks: data fits into the image, a GPG encrypt/sign/verify dummy run, an SSH key loaded in `ssh-agent`, SSH login, Slurm tools, `exec_dir`, the reservation (`State=ACTIVE`, user listed) and that no job is running in it. The first failing check stops the run.
+
+### Smaller changes
+
+- **Cleaning up the previous run** only unmounts, closes or detaches what is actually open, and only detaches loop devices whose file is named exactly `outdata.img` (the original detached every loop device whose `losetup -a` line contained `outdata`).
+- **`command.sh` never touches the disk.** It contains the Vault tokens, so it is encrypted straight from memory. The original left it in the repository folder in plain text.
+
+### Not implemented yet
+
+The LUKS image, Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
+

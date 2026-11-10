@@ -83,7 +83,7 @@ class RunConfig:
     """One job, read from a run.toml."""
 
     exec_dir: str  # folder on the cluster, so not a local Path
-    container: str  # file name inside exec_dir
+    container: Path  # local, encrypted .sif; uploaded to exec_dir/container.sif when it changed
     data: Path
     image_size_mb: int
     command: str
@@ -92,7 +92,7 @@ class RunConfig:
     def from_dict(cls, d: dict[str, Any], base_dir: Path) -> "RunConfig":
         return cls(
             exec_dir=d["exec_dir"],
-            container=d["container"],
+            container=base_dir / Path(d["container"]).expanduser(),
             data=base_dir / Path(d["data"]).expanduser(),  # relative to the run.toml, absolute stays absolute
             image_size_mb=d["image_size_mb"],
             command=d["command"],

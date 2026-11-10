@@ -6,13 +6,12 @@ they check everything that could break a run.
 
 To add a debug check:
 1. Write a function `my_check(cfg, run_cfg)` that raises an exception when something is wrong.
-   Use utils.run or _ssh (both raise on failure and log the command), and log.debug anything useful.
+   Use utils.run or utils.ssh (both raise on failure and log the command), and log.debug anything useful.
 2. Add one line to `run_debug_checks`.
 """
 
 import logging
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -23,10 +22,23 @@ from pathlib import Path
 
 from securehpc import config, utils
 from securehpc.config import Config, RunConfig
+from securehpc.utils import CommandError
 
 log = logging.getLogger(__name__)
 
-CLIENT_TOOLS = ["gpg", "ssh", "scp", "sudo", "cryptsetup", "losetup", "mkfs.ext4", "mount", "umount", "vault"]
+CLIENT_TOOLS = [
+    "gpg",
+    "ssh",
+    "scp",
+    "sudo",
+    "cryptsetup",
+    "losetup",
+    "mkfs.ext4",
+    "mount",
+    "umount",
+    "vault",
+    "apptainer",
+]
 
 
 def check_client(cfg: Config) -> list[str]:
@@ -60,7 +72,36 @@ def check_run(run_cfg: RunConfig) -> list[str]:
         problems.append(f"Data folder not found: {run_cfg.data}")
     if not run_cfg.command.strip():
         problems.append("command in the run file is empty")
+    if not run_cfg.container.is_file():
+        problems.append(f"Container not found: {run_cfg.container}")
+    elif shutil.which("apptainer") is not None:  # a missing apptainer is already reported by check_tools
+        problems += check_container_encrypted(run_cfg.container)
     return problems
+
+
+def check_container_encrypted(path: Path) -> list[str]:
+    # WHY THIS CHECK EXISTS
+    #
+    # submit uploads the container automatically whenever its hash changed. The cluster's shared
+    # storage is untrusted: other users with a privilege escalation, and the admins, can read
+    # everything on it. The container may hold sensitive things itself (code, model weights,
+    # embedded data), so it must only ever leave this machine encrypted
+    # (`apptainer build --pem-path=rsa_pub.pem ...`).
+    #
+    # In the original client the upload was a deliberate, manual scp. Here, pointing `container`
+    # at the unencrypted build by mistake would silently copy it to the cluster. So we refuse to
+    # submit unless every squashfs partition in the SIF file is encrypted.
+    #
+    # `apptainer sif list` prints one line per partition, e.g. "FS (Encrypted squashfs/*System/amd64)"
+    # for an encrypted one and "FS (Squashfs/*System/amd64)" for a plain one.
+    try:
+        out = utils.run(["apptainer", "sif", "list", str(path)])
+    except CommandError as e:
+        return [f"Container is not a readable SIF file: {e}"]
+    squashfs = [line for line in out.splitlines() if "squashfs" in line.lower()]
+    if not squashfs or not all("encrypted squashfs" in line.lower() for line in squashfs):
+        return [f"Container is not encrypted, refusing to upload it: {path} (build it with --pem-path)"]
+    return []
 
 
 def check_secret_file(path: Path) -> list[str]:
@@ -98,10 +139,10 @@ def run_debug_checks(cfg: Config, run_cfg: RunConfig) -> None:
     _check("Data fits into the image", data_fits, cfg, run_cfg)
     _check("GPG can encrypt for the node and sign with your key", gpg_dummy_run, cfg, run_cfg)
     # cluster
+    _check("An SSH key is loaded in ssh-agent", ssh_agent_has_key, cfg, run_cfg)
     _check("SSH login to the frontend works", ssh_login, cfg, run_cfg)
     _check("Slurm tools are there", slurm_tools, cfg, run_cfg)
     _check("exec_dir exists", exec_dir_exists, cfg, run_cfg)
-    _check("Container exists and is readable", container_readable, cfg, run_cfg)
     _check("Reservation exists and is usable", reservation_usable, cfg, run_cfg)
     _check("No job is running in the reservation", reservation_idle, cfg, run_cfg)
     # TODO: Vault checks: reachable (through the proxy with --proxy), token valid, remaining lifetime
@@ -118,12 +159,6 @@ def _check(name: str, check: Callable[[Config, RunConfig], None], cfg: Config, r
         log.error("Debug checks failed, nothing was submitted")
         sys.exit(1)
     log.info("ok: %s (%.1fs)", name, time.monotonic() - start)
-
-
-def _ssh(cfg: Config, *cmd: str) -> str:
-    """Run a command on the login node. BatchMode: fail instead of hanging on a password prompt."""
-    target = f"{cfg.cluster.user}@{cfg.cluster.login_node}"
-    return utils.run(["ssh", "-o", "BatchMode=yes", target, shlex.join(cmd)])
 
 
 def _slurm(cfg: Config, tool: str) -> str:
@@ -156,31 +191,34 @@ def gpg_dummy_run(cfg: Config, run_cfg: RunConfig) -> None:
 # --- cluster ---
 
 
+def ssh_agent_has_key(cfg: Config, run_cfg: RunConfig) -> None:
+    # ssh connects many times (e.g. while waiting for the job). Without a key in the agent, every
+    # connection asks for the passphrase again. ssh-add -l fails if there is no agent or no key in it.
+    # It can't tell whether it is the key the cluster accepts; ssh_login below shows that.
+    try:
+        log.debug(utils.run(["ssh-add", "-l"]).strip())
+    except CommandError:
+        raise RuntimeError("no ssh-agent running or no key loaded, run `ssh-add`") from None
+
+
 def ssh_login(cfg: Config, run_cfg: RunConfig) -> None:
-    log.debug("Logged in as %s", _ssh(cfg, "whoami").strip())
+    log.debug("Logged in as %s", utils.ssh(cfg, "whoami").strip())
 
 
 def slurm_tools(cfg: Config, run_cfg: RunConfig) -> None:
     for tool in SLURM_TOOLS:
-        log.debug(_ssh(cfg, _slurm(cfg, tool), "--version").strip())
+        log.debug(utils.ssh(cfg, _slurm(cfg, tool), "--version").strip())
 
 
 def exec_dir_exists(cfg: Config, run_cfg: RunConfig) -> None:
-    kind, owner, mode = _ssh(cfg, "stat", "-c", "%F %U %a", run_cfg.exec_dir).rsplit(maxsplit=2)
+    kind, owner, mode = utils.ssh(cfg, "stat", "-c", "%F %U %a", run_cfg.exec_dir).rsplit(maxsplit=2)
     log.debug("exec_dir: %s, owner %s, mode %s", kind, owner, mode)
     if kind != "directory":
         raise RuntimeError(f"{run_cfg.exec_dir} is a {kind}, not a directory")
 
 
-def container_readable(cfg: Config, run_cfg: RunConfig) -> None:
-    path = f"{run_cfg.exec_dir}/{run_cfg.container}"
-    size = int(_ssh(cfg, "stat", "-c", "%s", path))
-    log.debug("Container: %s, %.1f MB", path, size / 2**20)
-    _ssh(cfg, "head", "-c", "1", path)  # fails with "Permission denied" if not readable
-
-
 def reservation_usable(cfg: Config, run_cfg: RunConfig) -> None:
-    out = _ssh(cfg, _slurm(cfg, "scontrol"), "show", "reservation", cfg.cluster.reservation)
+    out = utils.ssh(cfg, _slurm(cfg, "scontrol"), "show", "reservation", cfg.cluster.reservation)
     fields = parse_scontrol(out)
     if fields.get("ReservationName") != cfg.cluster.reservation:
         raise RuntimeError(f"reservation not found: {out.strip()}")
@@ -200,7 +238,7 @@ def parse_scontrol(out: str) -> dict[str, str]:
 
 
 def reservation_idle(cfg: Config, run_cfg: RunConfig) -> None:
-    jobs = _ssh(
+    jobs = utils.ssh(
         cfg, _slurm(cfg, "squeue"), "--noheader", f"--reservation={cfg.cluster.reservation}", "--format=%i %u %T"
     )
     if jobs.strip():

@@ -6,6 +6,8 @@ import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from securehpc.config import Config
+
 log = logging.getLogger(__name__)
 
 
@@ -52,3 +54,12 @@ def cache_sudo_credentials() -> None:
     """
     log.info("Some steps need root (LUKS image, mounting). Asking for your sudo password now.")
     run(["sudo", "-v"])
+
+
+def ssh_target(cfg: Config) -> str:
+    return f"{cfg.cluster.user}@{cfg.cluster.login_node}"
+
+
+def ssh(cfg: Config, *cmd: str) -> str:
+    """Run a command on the login node."""
+    return run(["ssh", ssh_target(cfg), shlex.join(cmd)])

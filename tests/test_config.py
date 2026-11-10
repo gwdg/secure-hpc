@@ -65,7 +65,7 @@ def test_load_run_data_relative_to_file(tmp_path: Path) -> None:
     run_cfg = config.load_run(path)
     assert run_cfg == RunConfig(
         exec_dir="/mnt/ceph-hdd/cold/u12345/secure",
-        container="container.sif",
+        container=tmp_path / "project" / "container.sif",
         data=tmp_path / "project" / "data",
         image_size_mb=100,
         command="echo hi",
