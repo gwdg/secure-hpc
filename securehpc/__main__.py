@@ -21,7 +21,10 @@ def main() -> None:
     parser_submit.add_argument(
         "--proxy", action="store_true", help="Reach Vault through a SOCKS proxy via the login node"
     )
-    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg, args.run_file, args.proxy))
+    parser_submit.add_argument(
+        "--debug", action="store_true", help="Verbose logging and thorough checks before submitting"
+    )
+    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg, args.run_file, args.proxy, args.debug))
 
     args = parser.parse_args()
 

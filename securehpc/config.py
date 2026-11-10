@@ -15,8 +15,7 @@ class ClusterConfig:
     user: str
     login_node: str
     reservation: str
-    sbatch: str
-    sacct: str
+    slurm_bin: str  # path on the login node
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ClusterConfig":
@@ -24,8 +23,7 @@ class ClusterConfig:
             user=d["user"],
             login_node=d["login_node"],
             reservation=d["reservation"],
-            sbatch=d["sbatch"],
-            sacct=d["sacct"],
+            slurm_bin=d["slurm_bin"],
         )
 
 

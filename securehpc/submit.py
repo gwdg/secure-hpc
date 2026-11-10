@@ -2,26 +2,30 @@ import logging
 import sys
 from pathlib import Path
 
-from securehpc import checks, config, utils
+from securehpc import checks, config, debug, utils
 from securehpc.config import Config
 
 log = logging.getLogger(__name__)
 
 
-def run(cfg: Config, run_file: Path, proxy: bool) -> None:
+def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
+    if debug_mode:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     run_cfg = config.load_run(run_file)
 
+    # Those checks are relevant enough to be run everytime
     problems = checks.check_client(cfg) + checks.check_run(run_cfg)
-    # TODO: remote checks, once the SSH and Vault steps exist:
-    # - SSH to the login node works
-    # - the Vault token is valid (through the proxy with --proxy)
-    # - exec_dir exists on the cluster and is private (chmod 700)
-    # - the container exists in exec_dir
     for problem in problems:
         log.error(problem)
     if problems:
         log.error("%d problem(s) found, nothing was submitted", len(problems))
         sys.exit(1)
+
+    # In case we are debugging with the user, this runs everything that could be a potential problem
+    # (this is too much overhead to be run everytime though)
+    if debug_mode:
+        debug.run_all(cfg, run_cfg)
 
     utils.cache_sudo_credentials()
     log.info("submit (proxy=%s) is not implemented yet", proxy)
