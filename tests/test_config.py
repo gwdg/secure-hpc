@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from securehpc import config
-from securehpc.config import ConfigError
+from securehpc.config import ConfigError, RunConfig
 
 DEFAULT_TEXT = (importlib.resources.files("securehpc") / "default_config.toml").read_text()
 
@@ -47,3 +47,44 @@ def test_invalid_toml(config_path: Path) -> None:
     config_path.write_text("user = ")
     with pytest.raises(ConfigError, match="invalid TOML"):
         config.load_config()
+
+
+RUN_TOML = """
+exec_dir = "/mnt/ceph-hdd/cold/u12345/secure"
+container = "container.sif"
+data = "./data"
+image_size_mb = 100
+command = "echo hi"
+"""
+
+
+def test_load_run_data_relative_to_file(tmp_path: Path) -> None:
+    path = tmp_path / "project" / "run.toml"
+    path.parent.mkdir()
+    path.write_text(RUN_TOML)
+    run_cfg = config.load_run(path)
+    assert run_cfg == RunConfig(
+        exec_dir="/mnt/ceph-hdd/cold/u12345/secure",
+        container="container.sif",
+        data=tmp_path / "project" / "data",
+        image_size_mb=100,
+        command="echo hi",
+    )
+
+
+def test_load_run_absolute_data(tmp_path: Path) -> None:
+    path = tmp_path / "run.toml"
+    path.write_text(RUN_TOML.replace('"./data"', '"/srv/data"'))
+    assert config.load_run(path).data == Path("/srv/data")
+
+
+def test_load_run_missing_key(tmp_path: Path) -> None:
+    path = tmp_path / "run.toml"
+    path.write_text(RUN_TOML.replace('command = "echo hi"', ""))
+    with pytest.raises(ConfigError, match="command"):
+        config.load_run(path)
+
+
+def test_load_run_file_not_found(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="file not found"):
+        config.load_run(tmp_path / "run.toml")

@@ -1,8 +1,9 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 
-from securehpc import config, health, submit
+from securehpc import config, submit
 from securehpc.config import ConfigError
 from securehpc.shell import CommandError
 
@@ -15,15 +16,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Client for running secure workflows on shared HPC systems")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    parser_health = subparsers.add_parser("health", help="Check the setup with a dummy run")
-    parser_health.add_argument("--client-only", action="store_true", help="Only check the local machine")
-    parser_health.set_defaults(func=lambda args, cfg: health.run(cfg, args.client_only))
-
     parser_submit = subparsers.add_parser("submit", help="Run a job on the secure node")
+    parser_submit.add_argument("run_file", type=Path, help="Path to the run.toml describing the job")
     parser_submit.add_argument(
         "--proxy", action="store_true", help="Reach Vault through a SOCKS proxy via the login node"
     )
-    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg, args.proxy))
+    parser_submit.set_defaults(func=lambda args, cfg: submit.run(cfg, args.run_file, args.proxy))
 
     args = parser.parse_args()
 
@@ -35,7 +33,7 @@ def main() -> None:
         sys.exit(1)
     try:
         args.func(args, cfg)
-    except CommandError as e:
+    except (ConfigError, CommandError) as e:
         log.error("%s", e)
         sys.exit(1)
 

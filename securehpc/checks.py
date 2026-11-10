@@ -2,28 +2,14 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from securehpc import config
-from securehpc.config import Config
+from securehpc.config import Config, RunConfig
 
 log = logging.getLogger(__name__)
 
 CLIENT_TOOLS = ["gpg", "ssh", "scp", "sudo", "cryptsetup", "losetup", "mkfs.ext4", "mount", "umount", "vault"]
-
-
-def run(cfg: Config, client_only: bool) -> None:
-    problems = check_client(cfg)
-    if not client_only:
-        problems.append("cluster checks are not implemented yet")
-
-    for problem in problems:
-        log.error(problem)
-    if problems:
-        log.error("%d problem(s) found", len(problems))
-        sys.exit(1)
-    log.info("All checks passed")
 
 
 def check_client(cfg: Config) -> list[str]:
@@ -46,8 +32,17 @@ def check_placeholders(cfg: Config) -> list[str]:
     problems = []
     if cfg.cluster.user == "uXXXXX":
         problems.append(f"cluster.user is still the placeholder, edit {config.CONFIG_PATH}")
-    if "your_path" in cfg.cluster.exec_dir:
-        problems.append(f"cluster.exec_dir is still the placeholder, edit {config.CONFIG_PATH}")
+    return problems
+
+
+def check_run(run_cfg: RunConfig) -> list[str]:
+    problems = []
+    if "uXXXXX" in run_cfg.exec_dir:
+        problems.append("exec_dir in the run file is still the placeholder")
+    if not run_cfg.data.is_dir():
+        problems.append(f"Data folder not found: {run_cfg.data}")
+    if not run_cfg.command.strip():
+        problems.append("command in the run file is empty")
     return problems
 
 

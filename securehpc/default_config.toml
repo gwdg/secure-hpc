@@ -1,7 +1,6 @@
 [cluster]
 user = "uXXXXX"
 login_node = "glogin7.hpc.gwdg.de"
-exec_dir = "/mnt/ceph-hdd/cold/your_path"  # folder on the cluster for job files
 reservation = "secure-hpc"
 sbatch = "/usr/local/slurm/slurm/current/install/bin/sbatch"
 sacct = "/usr/local/slurm/slurm/current/install/bin/sacct"

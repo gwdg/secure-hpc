@@ -14,7 +14,6 @@ CONFIG_PATH = Path.home() / ".config" / "securehpc" / "config.toml"
 class ClusterConfig:
     user: str
     login_node: str
-    exec_dir: str  # path on the cluster, so not a local Path
     reservation: str
     sbatch: str
     sacct: str
@@ -24,7 +23,6 @@ class ClusterConfig:
         return cls(
             user=d["user"],
             login_node=d["login_node"],
-            exec_dir=d["exec_dir"],
             reservation=d["reservation"],
             sbatch=d["sbatch"],
             sacct=d["sacct"],
@@ -82,6 +80,27 @@ class Config:
         )
 
 
+@dataclass(frozen=True)
+class RunConfig:
+    """One job, read from a run.toml."""
+
+    exec_dir: str  # folder on the cluster, so not a local Path
+    container: str  # file name inside exec_dir
+    data: Path
+    image_size_mb: int
+    command: str
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any], base_dir: Path) -> "RunConfig":
+        return cls(
+            exec_dir=d["exec_dir"],
+            container=d["container"],
+            data=base_dir / Path(d["data"]).expanduser(),  # relative to the run.toml, absolute stays absolute
+            image_size_mb=d["image_size_mb"],
+            command=d["command"],
+        )
+
+
 class ConfigError(Exception):
     pass
 
@@ -103,3 +122,15 @@ def load_config() -> Config:
         raise ConfigError(f"{CONFIG_PATH}: invalid TOML: {e}") from e
     except KeyError as e:
         raise ConfigError(f"{CONFIG_PATH}: missing key {e}") from e
+
+
+def load_run(path: Path) -> RunConfig:
+    try:
+        with path.open("rb") as f:
+            return RunConfig.from_dict(tomllib.load(f), path.parent)
+    except FileNotFoundError as e:
+        raise ConfigError(f"{path}: file not found") from e
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigError(f"{path}: invalid TOML: {e}") from e
+    except KeyError as e:
+        raise ConfigError(f"{path}: missing key {e}") from e
