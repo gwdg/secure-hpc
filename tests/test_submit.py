@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from securehpc import jobscript
+from securehpc import submit, utils
 from securehpc.config import Config, RunConfig
 
 ASSETS = Path(__file__).parent / "assets"
@@ -17,12 +17,19 @@ DEFAULT_TEXT = (importlib.resources.files("securehpc") / "default_config.toml").
 # the values the original client had hardcoded or was called with when the assets were generated
 ORIGINAL_COMMAND = 'echo "In the input file was: \\"$(cat /output/input.txt)\\"" > /output/output.txt'
 
+LOSETUP_OUT = """\
+/dev/loop0 /home/me/securehpc/outdata.img
+/dev/loop1 /var/lib/snapd/snaps/core_123.snap
+/dev/loop2 /home/me/other/outdata.img.bak
+/dev/loop3 /tmp/outdata.img
+"""
 
-def make_config() -> Config:
+
+def make_original_config() -> Config:
     return Config.from_dict(tomllib.loads(DEFAULT_TEXT.replace("uXXXXX", "u19997")))
 
 
-def make_run(command: str = ORIGINAL_COMMAND) -> RunConfig:
+def make_original_run(command: str = ORIGINAL_COMMAND) -> RunConfig:
     d = {
         "exec_dir": "/mnt/ceph-hdd/cold/u19997/secure",
         "container": "container.sif",
@@ -33,8 +40,52 @@ def make_run(command: str = ORIGINAL_COMMAND) -> RunConfig:
     return RunConfig.from_dict(d, Path("."))
 
 
+# ---------- LUKS image ----------
+
+
+def fake_run(calls: list[list[str]]):
+    def run(cmd: list[str], input: str | None = None) -> str:
+        calls.append(cmd)
+        return LOSETUP_OUT if cmd[0] == "losetup" else ""
+
+    return run
+
+
+def test_loop_devices_only_outdata_img(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(utils, "run", fake_run([]))
+    assert submit._loop_devices() == ["/dev/loop0", "/dev/loop3"]
+
+
+def test_close_previous_undoes_everything(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(utils, "run", fake_run(calls))
+    monkeypatch.setattr(submit, "MOUNT_POINT", Path("/"))  # always a mount point
+    monkeypatch.setattr(submit, "MAPPER", tmp_path)  # exists
+    submit.close_previous()
+    assert [c for c in calls if c[0] == "sudo"] == [
+        ["sudo", "umount", "/"],
+        ["sudo", "cryptsetup", "luksClose", "outdata"],
+        ["sudo", "losetup", "--detach", "/dev/loop0"],
+        ["sudo", "losetup", "--detach", "/dev/loop3"],
+    ]
+
+
+def test_close_previous_nothing_to_do(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None: calls.append(cmd) or "")
+    monkeypatch.setattr(submit, "MOUNT_POINT", tmp_path)  # not a mount point
+    monkeypatch.setattr(submit, "MAPPER", tmp_path / "nope")
+    submit.close_previous()
+    assert [c for c in calls if c[0] == "sudo"] == []
+
+
+# ---------- job script ----------
+
+
 def render(command: str = ORIGINAL_COMMAND) -> str:
-    return jobscript.render(make_config(), make_run(command), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN")
+    return submit.render_command(
+        make_original_config(), make_original_run(command), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN"
+    )
 
 
 def test_render_matches_original() -> None:
@@ -54,7 +105,7 @@ def test_render_command_survives_quoting(command: str) -> None:
 
 
 def test_wrap_matches_original() -> None:
-    assert jobscript.wrap((ASSETS / "command.sh.asc").read_text()) == (ASSETS / "run.sh").read_text()
+    assert submit.wrap((ASSETS / "command.sh.asc").read_text()) == (ASSETS / "run.sh").read_text()
 
 
 @pytest.fixture
@@ -74,8 +125,8 @@ def gnupg(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 def test_write_encrypts_and_signs(gnupg: None, tmp_path: Path) -> None:
-    run_sh, sig = jobscript.write(
-        make_config(), make_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
+    run_sh, sig = submit.write_jobscript(
+        make_original_config(), make_original_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
     )
 
     text = run_sh.read_text()
@@ -90,5 +141,7 @@ def test_write_encrypts_and_signs(gnupg: None, tmp_path: Path) -> None:
 
 
 def test_write_leaves_no_plaintext(gnupg: None, tmp_path: Path) -> None:
-    jobscript.write(make_config(), make_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path)
+    submit.write_jobscript(
+        make_original_config(), make_original_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
+    )
     assert sorted(p.name for p in tmp_path.iterdir()) == ["run.sh", "run.sh.sig"]

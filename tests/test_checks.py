@@ -9,12 +9,21 @@ from securehpc.config import Config, RunConfig
 
 DEFAULT_TEXT = (importlib.resources.files("securehpc") / "default_config.toml").read_text()
 
+SCONTROL_OUT = """\
+ReservationName=secure-hpc-example StartTime=2026-01-01T00:00:00 EndTime=2027-01-01T00:00:00 Duration=365-00:00:00
+   Nodes=node001 NodeCnt=1 CoreCnt=32 Features=(null) PartitionName=(null) Flags=SPEC_NODES,STATIC
+   TRES=cpu=32
+   AllowedPartitions=(null) QOS=(null)
+   Users=u00001,u00002,u00003 Groups=(null) Accounts=(null) Licenses=(null) State=ACTIVE BurstBuffer=(null)
+   MaxStartDelay=(null)
+"""
+
 
 def make_config(text: str = DEFAULT_TEXT) -> Config:
     return Config.from_dict(tomllib.loads(text))
 
 
-def make_run(tmp_path: Path, **overrides: str) -> RunConfig:
+def make_run(tmp_path: Path, **overrides: object) -> RunConfig:
     d = {
         "exec_dir": "/mnt/ceph-hdd/cold/u12345/secure",
         "container": "container.sif",
@@ -68,3 +77,27 @@ def test_missing_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_path_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PATH")
     assert checks.check_client(make_config()) == ["PATH is not set"]
+
+
+# ---------- debug checks ----------
+
+
+def test_parse_scontrol() -> None:
+    fields = checks.parse_scontrol(SCONTROL_OUT)
+    assert fields["ReservationName"] == "secure-hpc-example"
+    assert fields["State"] == "ACTIVE"
+    assert fields["Users"] == "u00001,u00002,u00003"
+    assert fields["TRES"] == "cpu=32"  # only split at the first "="
+
+
+def test_data_fits(tmp_path: Path) -> None:
+    (tmp_path / "data" / "sub").mkdir(parents=True)
+    (tmp_path / "data" / "sub" / "a.bin").write_bytes(b"x" * 2**20)
+    checks.data_fits(make_config(), make_run(tmp_path, data="data", image_size_mb=2))
+    with pytest.raises(RuntimeError, match="image_size_mb is 1"):
+        checks.data_fits(make_config(), make_run(tmp_path, data="data", image_size_mb=1))
+
+
+def test_data_missing(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="not found"):
+        checks.data_fits(make_config(), make_run(tmp_path, data="data", image_size_mb=1))

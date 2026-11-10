@@ -5,7 +5,7 @@ from pathlib import Path
 
 from securehpc import config, submit
 from securehpc.config import ConfigError
-from securehpc.shell import CommandError
+from securehpc.utils import CommandError
 
 log = logging.getLogger(__name__)
 
