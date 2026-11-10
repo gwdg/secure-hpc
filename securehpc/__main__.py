@@ -4,6 +4,7 @@ import sys
 
 from securehpc import config, health
 from securehpc.config import ConfigError
+from securehpc.shell import CommandError
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,11 @@ def main() -> None:
     except ConfigError as e:
         log.error("Invalid config: %s", e)
         sys.exit(1)
-    args.func(args, cfg)
+    try:
+        args.func(args, cfg)
+    except CommandError as e:
+        log.error("%s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
