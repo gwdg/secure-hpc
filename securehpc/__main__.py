@@ -2,15 +2,10 @@ import argparse
 import logging
 import sys
 
-from securehpc import config
-from securehpc.config import Config, ConfigError
+from securehpc import config, health
+from securehpc.config import ConfigError
 
 log = logging.getLogger(__name__)
-
-
-def health(cfg: Config, client_only: bool) -> None:
-    # TODO: dummy run; with client_only, skip everything that needs the cluster
-    log.info("health check (client_only=%s) not implemented yet", client_only)
 
 
 def main() -> None:
@@ -21,7 +16,7 @@ def main() -> None:
 
     parser_health = subparsers.add_parser("health", help="Check the setup with a dummy run")
     parser_health.add_argument("--client-only", action="store_true", help="Only check the local machine")
-    parser_health.set_defaults(func=lambda args, cfg: health(cfg, args.client_only))
+    parser_health.set_defaults(func=lambda args, cfg: health.run(cfg, args.client_only))
 
     args = parser.parse_args()
 
