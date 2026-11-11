@@ -697,5 +697,5 @@ Built as in the original (`aes-xts-plain`, 512-bit key, ext4, mounted at `/mnt/o
 
 ### Not implemented yet
 
-Uploading the image, Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
+Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
 

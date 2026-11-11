@@ -40,6 +40,7 @@ def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
     utils.cache_sudo_credentials()
     close_previous()
     create_image(run_cfg, run_file.parent)
+    upload_image(cfg, run_cfg, run_file.parent)
     upload_container(cfg, run_cfg)
     log.info("submit (proxy=%s) is not implemented yet", proxy)
     log.info("%s", mount_command(run_file.parent))
@@ -95,6 +96,13 @@ def create_image(run_cfg: RunConfig, job_dir: Path) -> None:
 
     utils.run(["sudo", "umount", str(MOUNT_POINT)])
     utils.run(["sudo", "cryptsetup", "luksClose", NAME])
+
+
+def upload_image(cfg: Config, run_cfg: RunConfig, job_dir: Path) -> None:
+    """Upload outdata.img to exec_dir, where the node's mount_data expects it."""
+    remote = f"{run_cfg.exec_dir}/{NAME}.img"
+    log.info("Uploading the encrypted image to %s", remote)
+    utils.run(["scp", str(job_dir / f"{NAME}.img"), f"{utils.ssh_target(cfg)}:{remote}"])
 
 
 def mount_command(job_dir: Path) -> str:

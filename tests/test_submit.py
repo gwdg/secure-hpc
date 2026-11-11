@@ -141,6 +141,19 @@ def test_create_image(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     assert (mount_point / "sub" / ".hidden").read_text() == "too"
 
 
+def test_upload_image(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None: calls.append(cmd) or "")
+    submit.upload_image(make_original_config(), make_original_run(), tmp_path)
+    assert calls == [
+        [
+            "scp",
+            str(tmp_path / "outdata.img"),
+            "u19997@glogin7.hpc.gwdg.de:/mnt/ceph-hdd/cold/u19997/secure/outdata.img",
+        ]
+    ]
+
+
 # ---------- container ----------
 
 
