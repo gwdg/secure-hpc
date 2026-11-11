@@ -9,6 +9,7 @@ import shlex
 import shutil
 import string
 import sys
+import time
 from pathlib import Path
 
 from securehpc import checks, config, utils
@@ -50,7 +51,8 @@ def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
         wrapped_token = create_wrapped_token(cfg, env)
     run_sh, sig = write_jobscript(cfg, run_cfg, wrapped_token, run_file.parent)
     job_id = submit_job(cfg, run_cfg, run_sh, sig)
-    log.info("Waiting for the job is not implemented yet. Its log: %s/slurm-%s.out", run_cfg.exec_dir, job_id)
+    wait_for_job(cfg, run_cfg, job_id)
+    download_image(cfg, run_cfg, run_file.parent)
     log.info("%s", mount_command(run_file.parent))
 
 
@@ -289,3 +291,50 @@ def submit_job(cfg: Config, run_cfg: RunConfig, run_sh: Path, sig: Path) -> str:
         raise CommandError(f"unexpected output from sbatch: {out.strip()!r}")
     log.info("Submitted job %s", words[3])
     return words[3]
+
+
+POLL_SECONDS = 10  # as in the original
+# Slurm job states after which the job won't run anymore. Everything else (PENDING, RUNNING, ...) means wait.
+FINAL_STATES = {
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+    "TIMEOUT",
+    "OUT_OF_MEMORY",
+    "NODE_FAIL",
+    "PREEMPTED",
+    "BOOT_FAIL",
+    "DEADLINE",
+}
+
+
+def wait_for_job(cfg: Config, run_cfg: RunConfig, job_id: str) -> None:
+    """Poll sacct until the job has ended. Raise CommandError unless it COMPLETED.
+
+    The original only stopped once every line said COMPLETED, so a failed or cancelled job made it wait forever,
+    and an empty job id ended the wait at once. Here any final state ends it, and only the job itself is asked
+    (`-X`, not its steps).
+    """
+    log_file = f"{run_cfg.exec_dir}/slurm-{job_id}.out"
+    sacct = f"{cfg.cluster.slurm_bin}/sacct"
+    last = None
+    while True:
+        out = utils.ssh(cfg, sacct, "-j", job_id, "-X", "--noheader", "--parsable2", "--format=State")
+        # empty right after submitting, until sacct knows the job; "CANCELLED by 12345" -> CANCELLED
+        state = out.split()[0] if out.strip() else "UNKNOWN"
+        if state != last:
+            log.info("Job %s: %s", job_id, state)
+            last = state
+        if state in FINAL_STATES:
+            break
+        time.sleep(POLL_SECONDS)
+    if state != "COMPLETED":
+        raise CommandError(f"job {job_id} ended as {state}, see its log: {log_file}")
+    log.info("Job %s completed, its log: %s", job_id, log_file)
+
+
+def download_image(cfg: Config, run_cfg: RunConfig, job_dir: Path) -> None:
+    """Download exec_dir/outdata.img with the results, over the uploaded one next to the run.toml."""
+    remote = f"{run_cfg.exec_dir}/{NAME}.img"
+    log.info("Downloading the results %s", remote)
+    utils.run(["scp", f"{utils.ssh_target(cfg)}:{remote}", str(job_dir / f"{NAME}.img")])

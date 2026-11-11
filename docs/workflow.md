@@ -654,7 +654,7 @@ How the scripts behave in situations the steps above don't cover.
 
 ## 11. Changes in the Python client
 
-Sections 1 to 10 describe the original bash client, now in `old/`. The Python client (`securehpc submit run.toml`) keeps the interface to the secure node unchanged: `run.sh` is byte-for-byte the same as the original's, and so is `command.sh` apart from the removed single-use token (see below). Both are checked by tests against outputs of the original scripts. These are the deliberate changes to the workflow.
+Sections 1 to 10 describe the original bash client, now in `old/`. The Python client (`securehpc submit run.toml`) keeps the interface to the secure node unchanged: `run.sh` is byte-for-byte the same as the original's, and so is `command.sh` apart from the removed single-use token (see below) and a stale `TODO` comment. Both are checked by tests against outputs of the original scripts. These are the deliberate changes to the workflow.
 
 ### Configuration instead of editing scripts
 
@@ -706,7 +706,12 @@ The same calls as `prepare_scripts.sh`: both keys are stored with `vault kv put 
 - **`sbatch` also gets `--partition`** (`cluster.partition`). The original only passed `--reservation`, which fails with "Invalid account or account/partition combination" when the reservation is in a partition other than your default one.
 - **No single-use token.** The original created a `default`-policy token with one use and put it into `command.sh` as `token_setup`, but never exported it, so neither `vault unwrap` nor `getkey` saw it ([section 6](#6-the-job-on-the-secure-node)). The lines `token_setup=...` and `VAULT_TOKEN=$token_setup` are gone, and the token is no longer created. A job without them was tested on the cluster.
 
+### Waiting and results
+
+- **Any final job state ends the wait.** `sacct -X` (the job, not its steps) is asked every 10 seconds. A job that ends `FAILED`, `CANCELLED`, `TIMEOUT` etc. stops the run with that state and the path of its log; the original waited forever. Right after submitting, while `sacct` doesn't know the job yet, it keeps waiting; the original ended the wait at once if the job id was empty.
+- **The results are downloaded next to the `run.toml`** (`outdata.img`, over the uploaded one), and the commands to open and close them are printed. The original mounted them itself.
+
 ### Not implemented yet
 
-Waiting for the job and downloading the results.
+Deleting the keys from Vault after the job (the original never did either).
 

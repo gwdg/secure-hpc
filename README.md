@@ -28,6 +28,8 @@ Each submit writes `outdata.img` (the encrypted image), `outdata.key` (its key),
 
 The command runs inside the container with `bash -c`. The encrypted image is mounted at `/output` and holds both the input data and the results, so read from and write to `/output`.
 
+`submit` then waits for the job, downloads `outdata.img` with the results next to the `run.toml` (over the uploaded one) and prints how to open it. If the job fails, it stops with the job's state and the path of its Slurm log in `exec_dir`.
+
 Jobs run one at a time: each `submit` reuses the same files on the cluster, so wait for a job to finish before submitting the next.
 
 ## Key and Token Writeup

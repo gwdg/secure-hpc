@@ -267,13 +267,15 @@ def test_create_wrapped_token(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------- job script ----------
 
 
-# The original's command.sh, minus the unused single-use token: it was set but never exported,
-# and the job works without it (tested on the cluster). Everything else stays byte-for-byte the same.
+# The original's command.sh, minus the unused single-use token (set but never exported; the job works
+# without it, tested on the cluster) and minus a stale TODO (the username now comes from the config).
+# Everything else stays byte-for-byte the same.
 EXPECTED_COMMAND_SH = (
     (ASSETS / "command.sh")
     .read_text()
     .replace("token_setup=hvs.DUMMY-DEFAULT-TOKEN\n", "")
     .replace("VAULT_TOKEN=$token_setup\n", "")
+    .replace("# TODO: Do not hard code the username here\n", "")
 )
 
 
@@ -373,3 +375,49 @@ def test_submit_job(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_submit_job_unexpected_output(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(CommandError, match="unexpected output from sbatch"):
         submit_calls(monkeypatch, "sbatch: error: Batch job submission failed\n")
+
+
+def wait_calls(monkeypatch: pytest.MonkeyPatch, states: list[str]) -> list[list[str]]:
+    """wait_for_job against a fake sacct that answers with `states`, one per poll."""
+    calls: list[list[str]] = []
+    answers = iter(states)
+
+    def run(cmd: list[str], input: str | None = None, env: dict[str, str] | None = None) -> str:
+        calls.append(cmd)
+        return next(answers)
+
+    monkeypatch.setattr(utils, "run", run)
+    monkeypatch.setattr(submit.time, "sleep", lambda s: None)
+    submit.wait_for_job(make_original_config(), make_original_run(), "4242")
+    return calls
+
+
+def test_wait_for_job_completed(monkeypatch: pytest.MonkeyPatch) -> None:
+    # empty first: sacct doesn't know the job yet right after submitting
+    calls = wait_calls(monkeypatch, ["", "PENDING\n", "RUNNING\n", "RUNNING\n", "COMPLETED\n"])
+    assert len(calls) == 5
+    sacct = "/usr/local/slurm/slurm/current/install/bin/sacct"
+    assert calls[0] == [
+        "ssh",
+        "u19997@glogin7.hpc.gwdg.de",
+        shlex.join([sacct, "-j", "4242", "-X", "--noheader", "--parsable2", "--format=State"]),
+    ]
+
+
+@pytest.mark.parametrize("state", ["FAILED", "CANCELLED by 15733", "TIMEOUT", "OUT_OF_MEMORY"])
+def test_wait_for_job_not_completed(monkeypatch: pytest.MonkeyPatch, state: str) -> None:
+    with pytest.raises(CommandError, match=r"ended as \w+, see its log: .*/slurm-4242\.out"):
+        wait_calls(monkeypatch, ["RUNNING\n", f"{state}\n"])
+
+
+def test_download_image(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None, env=None: calls.append(cmd) or "")
+    submit.download_image(make_original_config(), make_original_run(), tmp_path)
+    assert calls == [
+        [
+            "scp",
+            "u19997@glogin7.hpc.gwdg.de:/mnt/ceph-hdd/cold/u19997/secure/outdata.img",
+            str(tmp_path / "outdata.img"),
+        ]
+    ]
