@@ -675,6 +675,15 @@ The original expected the encrypted container to be uploaded by hand to `EXEC_DI
 
 The name on the cluster is always `container.sif`, as in the original. `apptainer` is now a required tool on the client.
 
+### The encrypted image
+
+Built as in the original (`aes-xts-plain`, 512-bit key, ext4, mounted at `/mnt/outdata`, input copied in, closed again), with these differences:
+
+- **`outdata.img` and `outdata.key` are written next to the `run.toml`**, not into the folder the client is started from. An existing pair from the previous run is overwritten, with a warning.
+- **The key is only readable by you** (`chmod 600`). The original wrote it with the default umask, usually readable by everyone. It is still 32 random characters from `0-9a-zA-Z`, now made with Python's `secrets`.
+- **No `losetup`.** `cryptsetup` formats the image file directly, and `luksOpen` on a file attaches its own loop device and detaches it on `luksClose`. The original attached one by hand with `losetup -f`.
+- **Hidden files in `data` are copied too.** The original's `cp -rv data/*` skipped them.
+
 ### Checks and errors
 
 - **Errors stop the run.** The original carried on after any failed command.
@@ -688,5 +697,5 @@ The name on the cluster is always `container.sif`, as in the original. `apptaine
 
 ### Not implemented yet
 
-The LUKS image, Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
+Uploading the image, Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
 

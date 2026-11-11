@@ -99,7 +99,19 @@ def test_secret_file_private(tmp_path: Path) -> None:
 
 def test_missing_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(checks, "CLIENT_TOOLS", ["sh", "securehpc-no-such-tool"])
+    monkeypatch.setattr(checks, "ROOT_TOOLS", [])
     assert checks.check_tools() == ["Tool not found in PATH: securehpc-no-such-tool"]
+
+
+def test_root_tool_found_in_sbin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    sbin = tmp_path / "sbin"
+    sbin.mkdir()
+    (sbin / "securehpc-root-tool").touch(mode=0o755)
+    monkeypatch.setenv("PATH", str(tmp_path / "bin"))  # a user PATH without sbin
+    monkeypatch.setattr(checks, "CLIENT_TOOLS", [])
+    monkeypatch.setattr(checks, "ROOT_TOOLS", ["securehpc-root-tool", "securehpc-no-such-tool"])
+    monkeypatch.setattr(checks, "ROOT_PATH", str(sbin))
+    assert checks.check_tools() == [f"Tool not found in PATH or {sbin}: securehpc-no-such-tool"]
 
 
 def test_path_unset(monkeypatch: pytest.MonkeyPatch) -> None:

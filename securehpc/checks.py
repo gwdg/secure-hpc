@@ -26,19 +26,11 @@ from securehpc.utils import CommandError
 
 log = logging.getLogger(__name__)
 
-CLIENT_TOOLS = [
-    "gpg",
-    "ssh",
-    "scp",
-    "sudo",
-    "cryptsetup",
-    "losetup",
-    "mkfs.ext4",
-    "mount",
-    "umount",
-    "vault",
-    "apptainer",
-]
+CLIENT_TOOLS = ["gpg", "ssh", "scp", "sudo", "vault", "apptainer"]
+# Only ever run with sudo. Debian keeps them in /usr/sbin and /sbin, which are not in a normal user's PATH,
+# but in sudo's own root PATH (secure_path). So look there too.
+ROOT_TOOLS = ["cryptsetup", "losetup", "mkfs.ext4", "mount", "umount"]
+ROOT_PATH = "/usr/sbin:/sbin"
 
 
 def check_client(cfg: Config) -> list[str]:
@@ -54,7 +46,12 @@ def check_client(cfg: Config) -> list[str]:
 
 
 def check_tools() -> list[str]:
-    return [f"Tool not found in PATH: {tool}" for tool in CLIENT_TOOLS if shutil.which(tool) is None]
+    problems = [f"Tool not found in PATH: {tool}" for tool in CLIENT_TOOLS if shutil.which(tool) is None]
+    root_path = f"{os.environ['PATH']}:{ROOT_PATH}"
+    for tool in ROOT_TOOLS:
+        if shutil.which(tool, path=root_path) is None:
+            problems.append(f"Tool not found in PATH or {ROOT_PATH}: {tool}")
+    return problems
 
 
 def check_placeholders(cfg: Config) -> list[str]:

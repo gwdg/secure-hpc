@@ -1,0 +1,7 @@
+exec_dir = "/mnt/vast-standard/home/lars.quentin01/u15733/hammerhai-demo"  # private folder on the cluster (chmod 700)
+container = "./container.sif"                  # local encrypted container, uploaded when it changed
+data = "./data"                                # copied into the encrypted image
+image_size_mb = 100                            # must fit the input data and the results
+command = """
+echo "In the input file was: $(cat /output/input.txt)" > /output/output.txt
+"""

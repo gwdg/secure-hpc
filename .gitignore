@@ -221,3 +221,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# securehpc: written next to each run.toml by submit (the key is secret), and containers
+outdata.img
+outdata.key
+*.sif

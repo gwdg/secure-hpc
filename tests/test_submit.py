@@ -1,5 +1,6 @@
 import hashlib
 import importlib.resources
+import os
 import shlex
 import subprocess
 import tempfile
@@ -47,7 +48,7 @@ def make_original_run(command: str = ORIGINAL_COMMAND) -> RunConfig:
 def fake_run(calls: list[list[str]]):
     def run(cmd: list[str], input: str | None = None) -> str:
         calls.append(cmd)
-        return LOSETUP_OUT if cmd[0] == "losetup" else ""
+        return LOSETUP_OUT if cmd[:3] == ["sudo", "losetup", "--list"] else ""
 
     return run
 
@@ -63,7 +64,7 @@ def test_close_previous_undoes_everything(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setattr(submit, "MOUNT_POINT", Path("/"))  # always a mount point
     monkeypatch.setattr(submit, "MAPPER", tmp_path)  # exists
     submit.close_previous()
-    assert [c for c in calls if c[0] == "sudo"] == [
+    assert [c for c in calls if c[1] != "losetup" or c[2] != "--list"] == [
         ["sudo", "umount", "/"],
         ["sudo", "cryptsetup", "luksClose", "outdata"],
         ["sudo", "losetup", "--detach", "/dev/loop0"],
@@ -77,7 +78,67 @@ def test_close_previous_nothing_to_do(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(submit, "MOUNT_POINT", tmp_path)  # not a mount point
     monkeypatch.setattr(submit, "MAPPER", tmp_path / "nope")
     submit.close_previous()
-    assert [c for c in calls if c[0] == "sudo"] == []
+    assert calls == [["sudo", "losetup", "--list", "--noheadings", "--output", "NAME,BACK-FILE"]]
+
+
+def test_write_key(tmp_path: Path) -> None:
+    key = tmp_path / "outdata.key"
+    key.write_text("old")
+    key.chmod(0o644)
+    submit._write_key(key)
+    text = key.read_text()
+    assert len(text) == 32 and text.isascii() and text.isalnum()
+    assert key.stat().st_mode & 0o777 == 0o600
+
+
+def test_mount_command() -> None:
+    assert submit.mount_command(Path("/my jobs/a")).splitlines() == [
+        "To open the image:",
+        "```bash",
+        (
+            "sudo cryptsetup luksOpen '/my jobs/a/outdata.img' outdata --key-file '/my jobs/a/outdata.key' && "
+            "sudo mkdir -p /mnt/outdata && "
+            "sudo mount -o rw,noexec,nosuid,nodev /dev/mapper/outdata /mnt/outdata && "
+            "sudo chown -R $(id -u) /mnt/outdata"
+        ),
+        "```",
+        "To close it again:",
+        "```bash",
+        "sudo umount /mnt/outdata && sudo cryptsetup luksClose outdata",
+        "```",
+    ]
+
+
+def test_create_image(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(utils, "run", lambda cmd, input=None: calls.append(cmd) or "")
+    mount_point = tmp_path / "mnt"
+    mount_point.mkdir()  # the fake mount: a plain folder
+    monkeypatch.setattr(submit, "MOUNT_POINT", mount_point)
+    data = tmp_path / "data"
+    (data / "sub").mkdir(parents=True)
+    (data / "input.txt").write_text("hello")
+    (data / "sub" / ".hidden").write_text("too")
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
+    run_cfg = RunConfig("/x", tmp_path / "c.sif", data, 3, "true")
+
+    submit.create_image(run_cfg, job_dir)
+
+    image, key, mnt = str(job_dir / "outdata.img"), str(job_dir / "outdata.key"), str(mount_point)
+    assert calls == [
+        ["sudo", "cryptsetup", "--batch-mode", "-c", "aes-xts-plain", "-s", "512", "luksFormat", image, key],
+        ["sudo", "cryptsetup", "luksOpen", image, "outdata", "--key-file", key],
+        ["sudo", "mkfs.ext4", "/dev/mapper/outdata"],
+        ["sudo", "mkdir", "-p", mnt],
+        ["sudo", "mount", "-t", "ext4", "/dev/mapper/outdata", mnt],
+        ["sudo", "chown", "-R", str(os.getuid()), mnt],
+        ["sudo", "umount", mnt],
+        ["sudo", "cryptsetup", "luksClose", "outdata"],
+    ]
+    assert (job_dir / "outdata.img").stat().st_size == 3 * 2**20
+    assert (mount_point / "input.txt").read_text() == "hello"
+    assert (mount_point / "sub" / ".hidden").read_text() == "too"
 
 
 # ---------- container ----------

@@ -1,0 +1,6 @@
+Bootstrap: docker
+From: ubuntu:24.04
+
+%post
+    # install what your command needs, e.g.
+    # apt-get update && apt-get install -y --no-install-recommends python3
