@@ -10,6 +10,7 @@ To add a debug check:
 2. Add one line to `run_debug_checks`.
 """
 
+import json
 import logging
 import os
 import shutil
@@ -131,7 +132,7 @@ def _gpg_has_key(list_option: str, key: str) -> bool:
 SLURM_TOOLS = ["sbatch", "sacct", "scontrol", "squeue"]
 
 
-def run_debug_checks(cfg: Config, run_cfg: RunConfig) -> None:
+def run_debug_checks(cfg: Config, run_cfg: RunConfig, proxy: bool) -> None:
     # local
     _check("Data fits into the image", data_fits, cfg, run_cfg)
     _check("GPG can encrypt for the node and sign with your key", gpg_dummy_run, cfg, run_cfg)
@@ -142,7 +143,9 @@ def run_debug_checks(cfg: Config, run_cfg: RunConfig) -> None:
     _check("exec_dir exists", exec_dir_exists, cfg, run_cfg)
     _check("Reservation exists and is usable", reservation_usable, cfg, run_cfg)
     _check("No job is running in the reservation", reservation_idle, cfg, run_cfg)
-    # TODO: Vault checks: reachable (through the proxy with --proxy), token valid, remaining lifetime
+    # vault
+    vault_name = "Vault is reachable" + (" through the proxy" if proxy else "") + " and your token is valid"
+    _check(vault_name, lambda c, r: vault_usable(c, proxy), cfg, run_cfg)
 
 
 def _check(name: str, check: Callable[[Config, RunConfig], None], cfg: Config, run_cfg: RunConfig) -> None:
@@ -232,6 +235,19 @@ def reservation_usable(cfg: Config, run_cfg: RunConfig) -> None:
 def parse_scontrol(out: str) -> dict[str, str]:
     """`Key=Value Key=Value ...` output of scontrol, as a dict."""
     return dict(item.split("=", 1) for item in out.split() if "=" in item)
+
+
+def vault_usable(cfg: Config, proxy: bool) -> None:
+    with utils.vault_env(cfg, proxy) as env:
+        log.debug(utils.run(["vault", "status", "-tls-skip-verify"], env=env).strip())  # fails if unreachable or sealed
+        # -format=json and only some fields: the full lookup output also contains the token itself
+        token = json.loads(utils.run(["vault", "token", "lookup", "-tls-skip-verify", "-format=json"], env=env))["data"]
+    ttl = token["ttl"]
+    log.debug("Vault token: policies %s, %ss left (0: never expires)", token["policies"], ttl)
+    # The node's token is a child of yours, and Vault revokes children together with their parent.
+    # So yours must outlive the wrapping token, or the node may not get the keys.
+    if ttl and ttl < utils.WRAP_TTL:
+        raise RuntimeError(f"your Vault token expires in {ttl}s, ask for a new one (needs more than {utils.WRAP_TTL}s)")
 
 
 def reservation_idle(cfg: Config, run_cfg: RunConfig) -> None:

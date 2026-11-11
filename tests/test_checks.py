@@ -1,4 +1,6 @@
 import importlib.resources
+import json
+import logging
 import tomllib
 from pathlib import Path
 
@@ -141,3 +143,37 @@ def test_data_fits(tmp_path: Path) -> None:
 def test_data_missing(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="not found"):
         checks.data_fits(make_config(), make_run(tmp_path, data="data", image_size_mb=1))
+
+
+# ---------- Vault ----------
+
+
+def fake_vault(monkeypatch: pytest.MonkeyPatch, ttl: int) -> None:
+    """vault status and vault token lookup; the lookup output contains the token itself, like the real one."""
+    lookup = json.dumps({"data": {"id": "hvs.MY-TOKEN", "ttl": ttl, "policies": ["default", "user_2"]}})
+
+    def run(cmd: list[str], input: str | None = None, env: dict[str, str] | None = None) -> str:
+        return lookup if cmd[1:3] == ["token", "lookup"] else "Sealed false"
+
+    monkeypatch.setattr(utils, "run", run)
+
+
+def make_vault_config(tmp_path: Path) -> Config:
+    (tmp_path / "vault.token").write_text("hvs.MY-TOKEN")
+    return make_config(DEFAULT_TEXT.replace("~/.config/securehpc/vault.token", str(tmp_path / "vault.token")))
+
+
+@pytest.mark.parametrize("ttl", [0, 3601])  # 0: never expires
+def test_vault_usable(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path, ttl: int
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    fake_vault(monkeypatch, ttl)
+    checks.vault_usable(make_vault_config(tmp_path), proxy=False)
+    assert "hvs.MY-TOKEN" not in caplog.text
+
+
+def test_vault_token_expires_too_soon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    fake_vault(monkeypatch, ttl=600)
+    with pytest.raises(RuntimeError, match="expires in 600s"):
+        checks.vault_usable(make_vault_config(tmp_path), proxy=False)

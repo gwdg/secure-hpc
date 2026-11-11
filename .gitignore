@@ -225,4 +225,6 @@ __marimo__/
 # securehpc: written next to each run.toml by submit (the key is secret), and containers
 outdata.img
 outdata.key
+run.sh
+run.sh.sig
 *.sif

@@ -688,7 +688,16 @@ Built as in the original (`aes-xts-plain`, 512-bit key, ext4, mounted at `/mnt/o
 
 - **Errors stop the run.** The original carried on after any failed command.
 - **Checks before anything happens:** tools installed, config placeholders replaced, Vault token and container key present and private (`chmod 600`), GPG keys in the keyring, data folder and container present, container encrypted. All problems are listed at once, and nothing is touched on the client or the cluster.
-- **`--debug`** adds verbose logging and slower checks: data fits into the image, a GPG encrypt/sign/verify dummy run, an SSH key loaded in `ssh-agent`, SSH login, Slurm tools, `exec_dir`, the reservation (`State=ACTIVE`, user listed) and that no job is running in it. The first failing check stops the run.
+- **`--debug`** adds verbose logging and slower checks: data fits into the image, a GPG encrypt/sign/verify dummy run, an SSH key loaded in `ssh-agent`, SSH login, Slurm tools, `exec_dir`, the reservation (`State=ACTIVE`, user listed), that no job is running in it, and Vault (reachable, through the proxy with `--proxy`; your token valid and not expiring within the wrapping token's 3000 seconds, since Vault revokes the node's token together with yours). The first failing check stops the run.
+
+### Vault
+
+The same calls as `prepare_scripts.sh`: both keys are stored with `vault kv put secret/data/<user>/outdata` and `.../rsa_pri` (`key=@file`, so the key is read by `vault` itself), and one wrapping token is created (`-policy=<user>-node -use-limit=3 -wrap-ttl=3000`). As in the original, your token is passed in `VAULT_TOKEN` and every `vault` call uses `-tls-skip-verify`. Differences:
+
+- **No tokens are printed.** The original printed both.
+- **The tokens are created last**, after both uploads, so the 3000 seconds start as late as possible.
+- **`--proxy`** opens the SSH SOCKS tunnel only while `vault` runs, on a free local port (the original always used 2020), and closes it afterwards. The original left it running and killed earlier ones with `kill -9`. `HTTPS_PROXY` is set only for `vault`.
+- **`run.sh` and `run.sh.sig` are written next to the `run.toml`**, not into the folder the client is started from.
 
 ### Smaller changes
 
@@ -698,5 +707,5 @@ Built as in the original (`aes-xts-plain`, 512-bit key, ext4, mounted at `/mnt/o
 
 ### Not implemented yet
 
-Vault (tokens and keys), the proxy, uploading and submitting `run.sh`, waiting for the job and downloading the results.
+Uploading and submitting `run.sh`, waiting for the job and downloading the results.
 

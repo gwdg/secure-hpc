@@ -8,6 +8,8 @@ uv run securehpc submit path/to/run.toml
 
 On first start, a default config is created at `~/.config/securehpc/config.toml`. Edit it before submitting.
 
+If your machine can't reach Vault directly (for example a VM outside the GWDG network), add `--proxy`: Vault is then reached through an SSH tunnel via the login node. `--debug` runs slower checks of everything first, including Vault.
+
 A job is described by a `run.toml`. Relative paths are relative to the `run.toml` itself:
 
 ```toml
@@ -22,7 +24,7 @@ echo "In the input file was: $(cat /output/input.txt)" > /output/output.txt
 
 The container must be built encrypted (`apptainer build --pem-path=rsa_pub.pem ...`); `submit` refuses to upload an unencrypted one. On every submit it compares the container's sha256 with `exec_dir/container.sif` on the cluster and uploads it if they differ.
 
-Each submit writes `outdata.img` (the encrypted image) and `outdata.key` (its key) next to the `run.toml`, overwriting the previous ones. Note that the LUKS2 header takes 16 MB of `image_size_mb`.
+Each submit writes `outdata.img` (the encrypted image), `outdata.key` (its key), `run.sh` and `run.sh.sig` next to the `run.toml`, overwriting the previous ones. Note that the LUKS2 header takes 16 MB of `image_size_mb`.
 
 The command runs inside the container with `bash -c`. The encrypted image is mounted at `/output` and holds both the input data and the results, so read from and write to `/output`.
 

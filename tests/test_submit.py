@@ -196,6 +196,73 @@ def test_upload_container_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert len(upload_calls(monkeypatch, tmp_path, "")) == 1
 
 
+# ---------- Vault ----------
+
+VAULT_ENV = {"VAULT_ADDR": "https://kms.hpc.gwdg.de", "VAULT_TOKEN": "hvs.MY-TOKEN"}
+
+
+def vault_calls(monkeypatch: pytest.MonkeyPatch, out: str = "") -> list[tuple[list[str], dict[str, str] | None]]:
+    calls: list[tuple[list[str], dict[str, str] | None]] = []
+
+    def run(cmd: list[str], input: str | None = None, env: dict[str, str] | None = None) -> str:
+        calls.append((cmd, env))
+        return out
+
+    monkeypatch.setattr(utils, "run", run)
+    return calls
+
+
+def test_store_keys(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls = vault_calls(monkeypatch)
+    cfg = make_original_config()
+    submit.store_keys(cfg, VAULT_ENV, tmp_path)
+    # the same paths as old/prepare_scripts.sh, values read from the files by vault itself
+    assert calls == [
+        (
+            [
+                "vault",
+                "kv",
+                "put",
+                "-tls-skip-verify",
+                "secret/data/user_2/outdata",
+                f"key=@{tmp_path / 'outdata.key'}",
+            ],
+            VAULT_ENV,
+        ),
+        (
+            [
+                "vault",
+                "kv",
+                "put",
+                "-tls-skip-verify",
+                "secret/data/user_2/rsa_pri",
+                f"key=@{cfg.container.private_key}",
+            ],
+            VAULT_ENV,
+        ),
+    ]
+
+
+def test_create_wrapped_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = vault_calls(monkeypatch, out="hvs.WRAPPED\n")
+    assert submit.create_wrapped_token(make_original_config(), VAULT_ENV) == "hvs.WRAPPED"
+    assert calls == [
+        (
+            [
+                "vault",
+                "token",
+                "create",
+                "-tls-skip-verify",
+                "-policy=user_2-node",
+                "-wrap-ttl=3000",
+                "-use-limit=3",
+                "-field=wrapping_token",
+            ],
+            VAULT_ENV,
+        )
+    ]
+
+
 # ---------- job script ----------
 
 

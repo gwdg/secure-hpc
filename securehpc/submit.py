@@ -35,14 +35,20 @@ def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
     # In case we are debugging with the user, this runs everything that could be a potential problem
     # (this is too much overhead to be run everytime though)
     if debug_mode:
-        checks.run_debug_checks(cfg, run_cfg)
+        checks.run_debug_checks(cfg, run_cfg, proxy)
 
     utils.cache_sudo_credentials()
     close_previous()
     create_image(run_cfg, run_file.parent)
     upload_image(cfg, run_cfg, run_file.parent)
     upload_container(cfg, run_cfg)
-    log.info("submit (proxy=%s) is not implemented yet", proxy)
+
+    # as late as possible: the wrapping token expires WRAP_TTL seconds after it is created
+    with utils.vault_env(cfg, proxy) as env:
+        store_keys(cfg, env, run_file.parent)
+        wrapped_token = create_wrapped_token(cfg, env)
+    run_sh, sig = write_jobscript(cfg, run_cfg, wrapped_token, run_file.parent)
+    log.info("Wrote %s and %s; uploading and submitting them is not implemented yet", run_sh, sig)
     log.info("%s", mount_command(run_file.parent))
 
 
@@ -171,6 +177,42 @@ def upload_container(cfg: Config, run_cfg: RunConfig) -> None:
     log.info("Uploading %s (%.0f MB) to %s", run_cfg.container, size_mb, remote)
     # TODO: show progress. utils.run captures scp's output, so a big upload looks frozen.
     utils.run(["scp", str(run_cfg.container), f"{utils.ssh_target(cfg)}:{remote}"])
+
+
+# ---------- Vault: hands the keys to the node ----------
+# The node fetches both keys with the token it unwraps from command.sh (see command.sh.template).
+
+
+def store_keys(cfg: Config, env: dict[str, str], job_dir: Path) -> None:
+    """Store outdata.key and the container's private key in Vault, where the node's getkey fetches them.
+
+    Same paths as old/prepare_scripts.sh (`sendkey.sh data/<user>/outdata` -> `vault kv put secret/data/<user>/...`).
+    Kept exactly like that, whatever the vault CLI does with the path: that is where getkey reads.
+    `key=@file` makes vault read the file itself, so the key never shows up in an argument.
+    """
+    for name, path in [(NAME, job_dir / f"{NAME}.key"), ("rsa_pri", cfg.container.private_key)]:
+        log.info("Storing %s in Vault", name)
+        utils.run(
+            ["vault", "kv", "put", "-tls-skip-verify", f"secret/data/{cfg.vault.user}/{name}", f"key=@{path}"], env=env
+        )
+
+
+def create_wrapped_token(cfg: Config, env: dict[str, str]) -> str:
+    """A wrapping token for the node, as in old/prepare_scripts.sh.
+
+    Unwrapping it (once, within WRAP_TTL seconds) gives a <user>-node token with 3 uses, which can read the keys.
+    Never logged: it only goes into command.sh, which is encrypted for the node.
+    """
+    log.info("Creating the node's Vault token")
+    cmd = [
+        "vault",
+        "token",
+        "create",
+        "-tls-skip-verify",
+        f"-policy={cfg.vault.user}-node",
+        f"-wrap-ttl={utils.WRAP_TTL}",
+    ]
+    return utils.run([*cmd, "-use-limit=3", "-field=wrapping_token"], env=env).strip()
 
 
 # ---------- job script ----------
