@@ -13,6 +13,7 @@ from pathlib import Path
 
 from securehpc import checks, config, utils
 from securehpc.config import Config, RunConfig
+from securehpc.utils import CommandError
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ def run(cfg: Config, run_file: Path, proxy: bool, debug_mode: bool) -> None:
         store_keys(cfg, env, run_file.parent)
         wrapped_token = create_wrapped_token(cfg, env)
     run_sh, sig = write_jobscript(cfg, run_cfg, wrapped_token, run_file.parent)
-    log.info("Wrote %s and %s; uploading and submitting them is not implemented yet", run_sh, sig)
+    job_id = submit_job(cfg, run_cfg, run_sh, sig)
+    log.info("Waiting for the job is not implemented yet. Its log: %s/slurm-%s.out", run_cfg.exec_dir, job_id)
     log.info("%s", mount_command(run_file.parent))
 
 
@@ -264,3 +266,26 @@ def sign(cfg: Config, path: Path) -> Path:
     gpg = ["gpg", "--batch", "--yes", "--local-user", cfg.gpg.signing_key]
     utils.run([*gpg, "--output", str(sig), "--detach-sign", str(path)])
     return sig
+
+
+# ---------- Slurm ----------
+
+
+def submit_job(cfg: Config, run_cfg: RunConfig, run_sh: Path, sig: Path) -> str:
+    """Upload run.sh and run.sh.sig to exec_dir and submit run.sh from there, like old/secure_sbatch. Returns the job id.
+
+    Unlike the original, also with --partition: the reservation is only usable in its partition.
+
+    `cd exec_dir && sbatch`, as in the original: the job then starts in exec_dir, where it finds run.sh.sig
+    and writes its log (slurm-<id>.out).
+    """
+    utils.run(["scp", str(run_sh), str(sig), f"{utils.ssh_target(cfg)}:{run_cfg.exec_dir}/"])
+    q = shlex.quote
+    sbatch = f"{cfg.cluster.slurm_bin}/sbatch"
+    script = f"cd {q(run_cfg.exec_dir)} && {q(sbatch)} --reservation={q(cfg.cluster.reservation)} --partition={q(cfg.cluster.partition)} run.sh"
+    out = utils.ssh(cfg, "sh", "-c", script)
+    words = out.split()  # "Submitted batch job 12345"
+    if words[:3] != ["Submitted", "batch", "job"] or len(words) != 4:
+        raise CommandError(f"unexpected output from sbatch: {out.strip()!r}")
+    log.info("Submitted job %s", words[3])
+    return words[3]

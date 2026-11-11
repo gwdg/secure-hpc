@@ -12,6 +12,7 @@ import pytest
 
 from securehpc import submit, utils
 from securehpc.config import Config, RunConfig
+from securehpc.utils import CommandError
 
 ASSETS = Path(__file__).parent / "assets"
 DEFAULT_TEXT = (importlib.resources.files("securehpc") / "default_config.toml").read_text()
@@ -335,3 +336,40 @@ def test_write_encrypts_and_signs(gnupg: None, tmp_path: Path) -> None:
 def test_write_leaves_no_plaintext(gnupg: None, tmp_path: Path) -> None:
     submit.write_jobscript(make_original_config(), make_original_run(), "hvs.DUMMY-WRAPPED-TOKEN", tmp_path)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["run.sh", "run.sh.sig"]
+
+
+# ---------- Slurm ----------
+
+
+def submit_calls(monkeypatch: pytest.MonkeyPatch, sbatch_out: str) -> tuple[list[list[str]], str]:
+    calls: list[list[str]] = []
+
+    def run(cmd: list[str], input: str | None = None, env: dict[str, str] | None = None) -> str:
+        calls.append(cmd)
+        return sbatch_out if cmd[0] == "ssh" else ""
+
+    monkeypatch.setattr(utils, "run", run)
+    job_id = submit.submit_job(make_original_config(), make_original_run(), Path("/j/run.sh"), Path("/j/run.sh.sig"))
+    return calls, job_id
+
+
+def test_submit_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls, job_id = submit_calls(monkeypatch, "Submitted batch job 4242\n")
+    assert job_id == "4242"
+    exec_dir = "/mnt/ceph-hdd/cold/u19997/secure"
+    sbatch = "/usr/local/slurm/slurm/current/install/bin/sbatch"
+    assert calls == [
+        ["scp", "/j/run.sh", "/j/run.sh.sig", f"u19997@glogin7.hpc.gwdg.de:{exec_dir}/"],
+        [
+            "ssh",
+            "u19997@glogin7.hpc.gwdg.de",
+            shlex.join(
+                ["sh", "-c", f"cd {exec_dir} && {sbatch} --reservation=secure-hpc --partition=secure-hpc run.sh"]
+            ),
+        ],
+    ]
+
+
+def test_submit_job_unexpected_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(CommandError, match="unexpected output from sbatch"):
+        submit_calls(monkeypatch, "sbatch: error: Batch job submission failed\n")

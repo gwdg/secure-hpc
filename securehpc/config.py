@@ -15,6 +15,7 @@ class ClusterConfig:
     user: str
     login_node: str
     reservation: str
+    partition: str
     slurm_bin: str  # path on the login node
 
     @classmethod
@@ -23,6 +24,7 @@ class ClusterConfig:
             user=d["user"],
             login_node=d["login_node"],
             reservation=d["reservation"],
+            partition=d["partition"],
             slurm_bin=d["slurm_bin"],
         )
 

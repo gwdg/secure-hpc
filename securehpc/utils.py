@@ -66,7 +66,10 @@ def ssh_target(cfg: Config) -> str:
 
 def ssh(cfg: Config, *cmd: str) -> str:
     """Run a command on the login node."""
-    return run(["ssh", ssh_target(cfg), shlex.join(cmd)])
+    remote = shlex.join(cmd)
+    # exactly the string the login node's shell gets and runs
+    log.debug("Remote command on %s: %s", cfg.cluster.login_node, remote)
+    return run(["ssh", ssh_target(cfg), remote])
 
 
 # ---------- Vault ----------

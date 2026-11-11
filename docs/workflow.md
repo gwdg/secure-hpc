@@ -660,7 +660,7 @@ Sections 1 to 10 describe the original bash client, now in `old/`. The Python cl
 
 | Original | Python client |
 |---|---|
-| Values hardcoded in `secure_sbatch`, `prepare_scripts.sh` and `command.sh.template` | `~/.config/securehpc/config.toml` for the machine and account: cluster user, login node, reservation, Slurm path, Vault, GPG keys, container key |
+| Values hardcoded in `secure_sbatch`, `prepare_scripts.sh` and `command.sh.template` | `~/.config/securehpc/config.toml` for the machine and account: cluster user, login node, reservation and partition, Slurm path, Vault, GPG keys, container key |
 | Command edited in `command.sh.template`, input in `data/` | A `run.toml` per job: `exec_dir`, `container`, `data`, `image_size_mb`, `command` |
 | User name `u19997` hardcoded in the node's data path | `cluster.user` from the config |
 | `sbatch` and `sacct` paths | One `slurm_bin` folder |
@@ -703,9 +703,10 @@ The same calls as `prepare_scripts.sh`: both keys are stored with `vault kv put 
 
 - **Cleaning up the previous run** only unmounts, closes or detaches what is actually open, and only detaches loop devices whose file is named exactly `outdata.img` (the original detached every loop device whose `losetup -a` line contained `outdata`).
 - **`command.sh` never touches the disk.** It contains the Vault tokens, so it is encrypted straight from memory. The original left it in the repository folder in plain text.
+- **`sbatch` also gets `--partition`** (`cluster.partition`). The original only passed `--reservation`, which fails with "Invalid account or account/partition combination" when the reservation is in a partition other than your default one.
 - **No single-use token.** The original created a `default`-policy token with one use and put it into `command.sh` as `token_setup`, but never exported it, so neither `vault unwrap` nor `getkey` saw it ([section 6](#6-the-job-on-the-secure-node)). The lines `token_setup=...` and `VAULT_TOKEN=$token_setup` are gone, and the token is no longer created. A job without them was tested on the cluster.
 
 ### Not implemented yet
 
-Uploading and submitting `run.sh`, waiting for the job and downloading the results.
+Waiting for the job and downloading the results.
 

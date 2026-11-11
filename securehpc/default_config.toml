@@ -2,6 +2,7 @@
 user = "uXXXXX"
 login_node = "glogin7.hpc.gwdg.de"
 reservation = "secure-hpc"
+partition = "secure-hpc"
 slurm_bin = "/usr/local/slurm/slurm/current/install/bin"  # folder with sbatch, sacct, ... on the login node
 
 [vault]
