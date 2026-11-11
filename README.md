@@ -27,3 +27,23 @@ Each submit writes `outdata.img` (the encrypted image) and `outdata.key` (its ke
 The command runs inside the container with `bash -c`. The encrypted image is mounted at `/output` and holds both the input data and the results, so read from and write to `/output`.
 
 Jobs run one at a time: each `submit` reuses the same files on the cluster, so wait for a job to finish before submitting the next.
+
+## Key and Token Writeup
+There are 5 keys and 2 tokens in general
+
+### Keys
+1. Your SSH key: Used for data transfer and submission
+2. `outdata.key`: LUKS Passphrase used for `outdata.img`, fetched from vault via Wrapping token
+3. Container Key pair (RSA): Public key used to encrypt container.sif on your machine. Private half fetched from vault via Wrapping Token
+4. Node GPG Key: Public key to encrypt command.sh (in run.sh), private key to decrypt.
+5. User GPG Key: Private half to sign run.sh (as run.sh.sig), public half for node to check sig
+
+Furthermore, in the old version, there was a single use, default-policy Vault key, but that one was never used.
+
+### Tokens
+6. Perma Vault token: To store the LUKS key and Singularity private key in Vault, and to create wrapping tokens per job
+7. Wrapping token: Embedded (encrypted by node public key) into command.sh, three uses:
+  - Vault unwrap to get the unwrapped token
+  - Unwrapped Token: Fetch the LUKS key with it
+  - Unwrapped token: Fetch the singularity private key with it
+

@@ -199,19 +199,27 @@ def test_upload_container_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 # ---------- job script ----------
 
 
+# The original's command.sh, minus the unused single-use token: it was set but never exported,
+# and the job works without it (tested on the cluster). Everything else stays byte-for-byte the same.
+EXPECTED_COMMAND_SH = (
+    (ASSETS / "command.sh")
+    .read_text()
+    .replace("token_setup=hvs.DUMMY-DEFAULT-TOKEN\n", "")
+    .replace("VAULT_TOKEN=$token_setup\n", "")
+)
+
+
 def render(command: str = ORIGINAL_COMMAND) -> str:
-    return submit.render_command(
-        make_original_config(), make_original_run(command), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN"
-    )
+    return submit.render_command(make_original_config(), make_original_run(command), "hvs.DUMMY-WRAPPED-TOKEN")
 
 
 def test_render_matches_original() -> None:
-    assert render() == (ASSETS / "command.sh").read_text()
+    assert render() == EXPECTED_COMMAND_SH
 
 
 def test_render_ignores_surrounding_newlines() -> None:
     # a TOML multi-line string ends with a newline
-    assert render(f"\n{ORIGINAL_COMMAND}\n") == (ASSETS / "command.sh").read_text()
+    assert render(f"\n{ORIGINAL_COMMAND}\n") == EXPECTED_COMMAND_SH
 
 
 @pytest.mark.parametrize("command", ["echo 'single quotes'", 'a && b; echo "$HOME" | tr a b', "line1\nline2"])
@@ -243,7 +251,7 @@ def gnupg(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 def test_write_encrypts_and_signs(gnupg: None, tmp_path: Path) -> None:
     run_sh, sig = submit.write_jobscript(
-        make_original_config(), make_original_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
+        make_original_config(), make_original_run(), "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
     )
 
     text = run_sh.read_text()
@@ -252,13 +260,11 @@ def test_write_encrypts_and_signs(gnupg: None, tmp_path: Path) -> None:
     assert text.endswith("-----END PGP MESSAGE-----\nEOF")
     encrypted = text.removeprefix(header).removesuffix("EOF")
     decrypted = subprocess.run(["gpg", "--decrypt"], input=encrypted, capture_output=True, text=True, check=True)
-    assert decrypted.stdout == (ASSETS / "command.sh").read_text()
+    assert decrypted.stdout == EXPECTED_COMMAND_SH
 
     subprocess.run(["gpg", "--verify", str(sig), str(run_sh)], check=True, capture_output=True)
 
 
 def test_write_leaves_no_plaintext(gnupg: None, tmp_path: Path) -> None:
-    submit.write_jobscript(
-        make_original_config(), make_original_run(), "hvs.DUMMY-DEFAULT-TOKEN", "hvs.DUMMY-WRAPPED-TOKEN", tmp_path
-    )
+    submit.write_jobscript(make_original_config(), make_original_run(), "hvs.DUMMY-WRAPPED-TOKEN", tmp_path)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["run.sh", "run.sh.sig"]

@@ -182,19 +182,16 @@ def upload_container(cfg: Config, run_cfg: RunConfig) -> None:
 # run.sh.sig  detached signature of run.sh, so the node can check it really comes from the user.
 
 
-def write_jobscript(
-    cfg: Config, run_cfg: RunConfig, default_token: str, wrapped_token: str, out_dir: Path
-) -> tuple[Path, Path]:
+def write_jobscript(cfg: Config, run_cfg: RunConfig, wrapped_token: str, out_dir: Path) -> tuple[Path, Path]:
     """Write run.sh and run.sh.sig into out_dir and return their paths."""
     run_sh = out_dir / "run.sh"
-    run_sh.write_text(wrap(encrypt(cfg, render_command(cfg, run_cfg, default_token, wrapped_token))))
+    run_sh.write_text(wrap(encrypt(cfg, render_command(cfg, run_cfg, wrapped_token))))
     return run_sh, sign(cfg, run_sh)
 
 
-def render_command(cfg: Config, run_cfg: RunConfig, default_token: str, wrapped_token: str) -> str:
+def render_command(cfg: Config, run_cfg: RunConfig, wrapped_token: str) -> str:
     text = (importlib.resources.files("securehpc") / "command.sh.template").read_text()
     values = {
-        "<DEFAULT_TOKEN>": default_token,
         "<WRAPPED_TOKEN>": wrapped_token,
         "<EXEC_DIR>": run_cfg.exec_dir,
         "<VAULT_ADDR>": cfg.vault.address,

@@ -654,7 +654,7 @@ How the scripts behave in situations the steps above don't cover.
 
 ## 11. Changes in the Python client
 
-Sections 1 to 10 describe the original bash client, now in `old/`. The Python client (`securehpc submit run.toml`) keeps the interface to the secure node unchanged: `command.sh` and `run.sh` are byte-for-byte the same as the original's (checked by tests against outputs of the original scripts). These are the deliberate changes to the workflow.
+Sections 1 to 10 describe the original bash client, now in `old/`. The Python client (`securehpc submit run.toml`) keeps the interface to the secure node unchanged: `run.sh` is byte-for-byte the same as the original's, and so is `command.sh` apart from the removed single-use token (see below). Both are checked by tests against outputs of the original scripts. These are the deliberate changes to the workflow.
 
 ### Configuration instead of editing scripts
 
@@ -694,6 +694,7 @@ Built as in the original (`aes-xts-plain`, 512-bit key, ext4, mounted at `/mnt/o
 
 - **Cleaning up the previous run** only unmounts, closes or detaches what is actually open, and only detaches loop devices whose file is named exactly `outdata.img` (the original detached every loop device whose `losetup -a` line contained `outdata`).
 - **`command.sh` never touches the disk.** It contains the Vault tokens, so it is encrypted straight from memory. The original left it in the repository folder in plain text.
+- **No single-use token.** The original created a `default`-policy token with one use and put it into `command.sh` as `token_setup`, but never exported it, so neither `vault unwrap` nor `getkey` saw it ([section 6](#6-the-job-on-the-secure-node)). The lines `token_setup=...` and `VAULT_TOKEN=$token_setup` are gone, and the token is no longer created. A job without them was tested on the cluster.
 
 ### Not implemented yet
 
