@@ -2,10 +2,10 @@
 
 # /opt/secure_workflow/deactivate_slurmd.sh
 
-token_setup=<DEFAULT_TOKEN>
-token=<WRAPPED_TOKEN>
+token_setup=hvs.DUMMY-DEFAULT-TOKEN
+token=hvs.DUMMY-WRAPPED-TOKEN
 
-exec_dir=<EXEC_DIR>
+exec_dir=/mnt/ceph-hdd/cold/u19997/secure
 
 export VAULT_ADDR='https://kms.hpc.gwdg.de'
 VAULT_TOKEN=$token_setup

@@ -1,0 +1,29 @@
+[project]
+name = "securehpc"
+version = "0.1.0"
+description = "Client for running secure workflows on shared HPC systems"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+securehpc = "securehpc.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["securehpc"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.mypy]
+strict = true
+
+[tool.ruff]
+line-length = 120

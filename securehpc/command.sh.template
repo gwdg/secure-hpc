@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# /opt/secure_workflow/deactivate_slurmd.sh
+
+token=<WRAPPED_TOKEN>
+
+exec_dir=<EXEC_DIR>
+
+export VAULT_ADDR='<VAULT_ADDR>'
+
+token=$(vault unwrap -tls-skip-verify -field=token $token)
+
+export VAULT_TOKEN=$token
+
+getkey <VAULT_USER> outdata
+getkey <VAULT_USER> rsa_pri
+
+echo "Mounting data.."
+mount_data outdata $exec_dir
+
+ls /keys/${SLURM_JOB_ID}
+
+/usr/local/bin/singularity exec --nv --pem-path=/keys/${SLURM_JOB_ID}/rsa_pri.key --bind /data/<CLUSTER_USER>/${SLURM_JOB_ID}/outdata/:/output/ \
+		$exec_dir/container.sif bash -c <COMMAND>
+ls /data/<CLUSTER_USER>/${SLURM_JOB_ID}/outdata
+
+echo "UMounting data.."
+umount_data outdata
+

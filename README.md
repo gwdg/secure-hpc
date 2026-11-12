@@ -1,4 +1,4 @@
-# Secure Workflow HPC
+# SecureHPC
 
 ![securehpc](https://pad.gwdg.de/uploads/5807c926-caf1-4381-96bc-647daa073187.png)<!--(./secure_submission_neu.png)-->
 
@@ -11,27 +11,56 @@ In a typical user workflow, the user logs in to the frontend and uploads sensiti
 
 ## Access to SecureHPC
 
-While this repo can already be used to set up the SecureHPC client on your own (Linux-based) secure device, access to SecureHPC has to be explicitly requested. For this, see [the SecureHPC docs](https://docs.hpc.gwdg.de/services/secure-hpc/) and contact us with your use case at [hpc-support@gwdg.de](mailto:hpc-support@gwdg.de). In particular, the following files are missing (and thus still expected by the scripts)
+While this repo can already be used to set up the SecureHPC client on your own (Linux-based) secure device, access to SecureHPC has to be explicitly requested. For this, see [the SecureHPC docs](https://docs.hpc.gwdg.de/services/secure-hpc/) and contact us with your use case at [hpc-support@gwdg.de](mailto:hpc-support@gwdg.de).
 
-- The public key of the SecureHPC node (i.e. `agq001.key` for the agq001 node)
-- The user-created keypair for the container encryption: (i.e. `rsa_{pri,pub}.pem`)
-- The KMS auth token (i.e. `secret/user_2.token`)
+## How to run
 
-## Overview of all files
+```bash
+uv run securehpc submit path/to/run.toml
+```
 
-TODO to be written, for now see [the SecureHPC docs](https://docs.hpc.gwdg.de/services/secure-hpc/).
+On first start, a default config is created at `~/.config/securehpc/config.toml`. Edit it before submitting.
 
-### Brief description of the secure workflow
-- A user with `UID` logs into the front end and uploads a [LUKS]() [1] data container. 
-- The batch script is encrpyted and uploaded. Keys are uploaded to the key management server managed by [`Vault`]()<sup>[2]</sup>.
-- Identity on the (?) server is verified via an access token. The batch script is decrypted and run on the hpc cluster. Jobs are managed by [Slurm]()<sup>[3]</sup>.
-- Output data is mounted for use. (To mention mounting/unmounting of data container and file system? Is there decryption again of the outdata?) 
+If your machine can't reach Vault directly (for example a VM outside the GWDG network), add `--proxy`: Vault is then reached through an SSH tunnel via the login node. `--debug` runs slower checks of everything first, including Vault.
 
-## Note on the Server Code
+A job is described by a `run.toml`. Relative paths are relative to the `run.toml` itself:
 
-Due to changes in our server image infrastructure, it is not trivial to easily version the server files to this git repository. Thus, for now, this repository only contains the client files needed to create and submit SecureHPC SLURM jobs.
+```toml
+exec_dir = "/mnt/ceph-hdd/cold/uXXXXX/secure"  # private folder on the cluster (chmod 700)
+container = "./container.sif"                  # local encrypted container, uploaded when it changed
+data = "./data"                                # copied into the encrypted image
+image_size_mb = 100                            # must fit the input data and the results
+command = """
+echo "In the input file was: $(cat /output/input.txt)" > /output/output.txt
+"""
+```
 
-For the last public version containing the server code, see the `serverclient` branch, or the according git tag or github release.
+The container must be built encrypted (`apptainer build --pem-path=rsa_pub.pem ...`); `submit` refuses to upload an unencrypted one. On every submit it compares the container's sha256 with `exec_dir/container.sif` on the cluster and uploads it if they differ.
 
-If you or your institution has interest in running a more recent verison of SecureHPC, feel free to contact [hpc-support@gwdg.de](mailto:hpc-support@gwdg.de).
+Each submit writes `outdata.img` (the encrypted image), `outdata.key` (its key), `run.sh` and `run.sh.sig` next to the `run.toml`, overwriting the previous ones. Note that the LUKS2 header takes 16 MB of `image_size_mb`.
+
+The command runs inside the container with `bash -c`. The encrypted image is mounted at `/output` and holds both the input data and the results, so read from and write to `/output`.
+
+`submit` then waits for the job, downloads `outdata.img` with the results next to the `run.toml` (over the uploaded one) and prints how to open it. If the job fails, it stops with the job's state and the path of its Slurm log in `exec_dir`.
+
+Jobs run one at a time: each `submit` reuses the same files on the cluster, so wait for a job to finish before submitting the next.
+
+## Key and Token Writeup
+There are 5 keys and 2 tokens in general
+
+### Keys
+1. Your SSH key: Used for data transfer and submission
+2. `outdata.key`: LUKS Passphrase used for `outdata.img`, fetched from vault via Wrapping token
+3. Container Key pair (RSA): Public key used to encrypt container.sif on your machine. Private half fetched from vault via Wrapping Token
+4. Node GPG Key: Public key to encrypt command.sh (in run.sh), private key to decrypt.
+5. User GPG Key: Private half to sign run.sh (as run.sh.sig), public half for node to check sig
+
+Furthermore, in the old version, there was a single use, default-policy Vault key, but that one was never used.
+
+### Tokens
+6. Perma Vault token: To store the LUKS key and Singularity private key in Vault, and to create wrapping tokens per job
+7. Wrapping token: Embedded (encrypted by node public key) into command.sh, three uses:
+  - Vault unwrap to get the unwrapped token
+  - Unwrapped Token: Fetch the LUKS key with it
+  - Unwrapped token: Fetch the singularity private key with it
 

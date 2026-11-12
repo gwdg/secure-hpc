@@ -1,0 +1,18 @@
+[cluster]
+user = "uXXXXX"
+login_node = "glogin7.hpc.gwdg.de"
+reservation = "secure-hpc"
+partition = "secure-hpc"
+slurm_bin = "/usr/local/slurm/slurm/current/install/bin"  # folder with sbatch, sacct, ... on the login node
+
+[vault]
+address = "https://kms.hpc.gwdg.de"
+user = "user_2"
+token_file = "~/.config/securehpc/vault.token"  # path only, never the token itself
+
+[gpg]
+node_key = "agq001"  # public key of the secure node
+signing_key = "user_key"  # your own key
+
+[container]
+private_key = "~/.config/securehpc/rsa_pri.pem"
