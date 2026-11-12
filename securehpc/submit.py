@@ -179,7 +179,7 @@ def upload_container(cfg: Config, run_cfg: RunConfig) -> None:
 
     size_mb = run_cfg.container.stat().st_size / 2**20
     log.info("Uploading %s (%.0f MB) to %s", run_cfg.container, size_mb, remote)
-    # TODO: show progress. utils.run captures scp's output, so a big upload looks frozen.
+    # TODO: show progress. utils.run captures scp's output, so a big upload looks frozen. (TODO same for data container)
     utils.run(["scp", str(run_cfg.container), f"{utils.ssh_target(cfg)}:{remote}"])
 
 
@@ -337,4 +337,5 @@ def download_image(cfg: Config, run_cfg: RunConfig, job_dir: Path) -> None:
     """Download exec_dir/outdata.img with the results, over the uploaded one next to the run.toml."""
     remote = f"{run_cfg.exec_dir}/{NAME}.img"
     log.info("Downloading the results %s", remote)
+    # TODO also here progress
     utils.run(["scp", f"{utils.ssh_target(cfg)}:{remote}", str(job_dir / f"{NAME}.img")])

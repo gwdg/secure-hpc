@@ -132,6 +132,9 @@ def _gpg_has_key(list_option: str, key: str) -> bool:
 SLURM_TOOLS = ["sbatch", "sacct", "scontrol", "squeue"]
 
 
+# NOTE: Difference between standard and debug checks:
+# Debug checks might take more time, thus we fail at the first that doesn't work
+# Normal checks are all tested at the same time (Also, all of them are "dry runs")
 def run_debug_checks(cfg: Config, run_cfg: RunConfig, proxy: bool) -> None:
     # local
     _check("Data fits into the image", data_fits, cfg, run_cfg)
